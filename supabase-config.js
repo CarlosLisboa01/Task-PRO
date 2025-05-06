@@ -213,4 +213,85 @@ async function checkSupabaseConnection() {
         console.error('Erro na conexão com o Supabase:', error);
         return false;
     }
+}
+
+// Função para buscar comentários de uma tarefa
+async function fetchTaskComments(taskId) {
+    try {
+        const { data, error } = await supabase
+            .from('task_comments')
+            .select('*')
+            .eq('task_id', taskId)
+            .order('created_at', { ascending: true });
+        
+        if (error) {
+            console.error('Erro ao buscar comentários:', error);
+            throw error;
+        }
+        
+        // Converter para o formato da aplicação (camelCase)
+        return data.map(comment => ({
+            id: comment.id,
+            taskId: comment.task_id,
+            text: comment.text,
+            createdAt: comment.created_at
+        }));
+    } catch (error) {
+        console.error('Erro ao buscar comentários:', error);
+        return [];
+    }
+}
+
+// Função para adicionar um comentário a uma tarefa
+async function addTaskComment(taskId, text) {
+    try {
+        const commentToSave = {
+            task_id: taskId,
+            text: text,
+        };
+        
+        const { data, error } = await supabase
+            .from('task_comments')
+            .insert([commentToSave])
+            .select();
+        
+        if (error) {
+            console.error('Erro ao adicionar comentário:', error);
+            throw error;
+        }
+        
+        if (!data || data.length === 0) return null;
+        
+        // Converter para o formato da aplicação (camelCase)
+        const comment = data[0];
+        return {
+            id: comment.id,
+            taskId: comment.task_id,
+            text: comment.text,
+            createdAt: comment.created_at
+        };
+    } catch (error) {
+        console.error('Erro ao adicionar comentário:', error);
+        return null;
+    }
+}
+
+// Função para excluir um comentário
+async function deleteTaskComment(commentId) {
+    try {
+        const { error } = await supabase
+            .from('task_comments')
+            .delete()
+            .eq('id', commentId);
+        
+        if (error) {
+            console.error('Erro ao excluir comentário:', error);
+            throw error;
+        }
+        
+        return true;
+    } catch (error) {
+        console.error('Erro ao excluir comentário:', error);
+        return false;
+    }
 } 

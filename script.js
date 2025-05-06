@@ -11,6 +11,14 @@ const cancelBtn = document.querySelector('.btn-cancel');
 const themeToggle = document.querySelector('.theme-toggle');
 const searchInput = document.querySelector('.header-search input');
 
+// Seleção dos elementos relacionados aos comentários
+const commentsModal = document.getElementById('comments-modal');
+const closeCommentsBtn = document.querySelector('.close-comments-modal');
+const commentsList = document.getElementById('comments-list');
+const commentForm = document.getElementById('comment-form');
+const commentInput = document.getElementById('comment-input');
+const commentTaskId = document.getElementById('comment-task-id');
+
 // Configuração inicial
 document.body.classList.add(localStorage.getItem('theme') || 'light');
 const now = new Date();
@@ -23,6 +31,9 @@ let tasks = {
     month: [],
     year: []
 };
+
+// Estado global para os comentários das tarefas
+let taskComments = {};
 
 // Carregar tarefas do Supabase quando a página for carregada
 document.addEventListener('DOMContentLoaded', async () => {
@@ -358,6 +369,24 @@ function createTaskElement(task) {
         </option>
     `).join('');
     
+    // Botão de comentários
+    const commentsButton = document.createElement('button');
+    commentsButton.className = 'comments-button';
+    commentsButton.innerHTML = '<i class="fas fa-comments"></i>';
+    commentsButton.title = 'Ver comentários';
+    
+    // Contador de comentários (será atualizado quando os comentários forem carregados)
+    const commentsCount = document.createElement('span');
+    commentsCount.className = 'comments-count';
+    commentsCount.style.display = 'none'; // Inicialmente oculto
+    commentsButton.appendChild(commentsCount);
+    
+    // Evento para abrir modal de comentários
+    commentsButton.addEventListener('click', (e) => {
+        e.stopPropagation();
+        openCommentsModal(task.id);
+    });
+    
     // Botão de fixar
     const pinButton = document.createElement('button');
     pinButton.className = 'pin-button';
@@ -372,6 +401,7 @@ function createTaskElement(task) {
     deleteButton.title = 'Excluir tarefa';
     
     actionsDiv.appendChild(statusSelect);
+    actionsDiv.appendChild(commentsButton);
     actionsDiv.appendChild(pinButton);
     actionsDiv.appendChild(deleteButton);
     
@@ -386,7 +416,10 @@ function createTaskElement(task) {
         taskElement.style.transform = 'translateY(0)';
     }, 50);
     
-    return { taskElement, statusSelect, pinButton, deleteButton };
+    // Carregar contagem de comentários (assíncrono)
+    loadCommentsCount(task.id);
+    
+    return { taskElement, statusSelect, pinButton, deleteButton, commentsButton, commentsCount };
 }
 
 // Função para renderizar tarefas
@@ -414,7 +447,7 @@ function renderTasks() {
         });
         
         sortedTasks.forEach((task) => {
-            const { taskElement, statusSelect, pinButton, deleteButton } = createTaskElement(task);
+            const { taskElement, statusSelect, pinButton, deleteButton, commentsButton, commentsCount } = createTaskElement(task);
             
             // Evento para atualizar status
             statusSelect.addEventListener('change', async (e) => {
@@ -734,4 +767,259 @@ function showWarningNotification(message) {
         notification.style.opacity = '0';
         setTimeout(() => notification.remove(), 300);
     }, 3000);
+}
+
+// Funções para manipular o modal de comentários
+function openCommentsModal(taskId) {
+    commentTaskId.value = taskId;
+    commentsModal.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+    commentInput.focus();
+    
+    // Carregar comentários da tarefa
+    loadTaskComments(taskId);
+}
+
+function closeCommentsModal() {
+    commentsModal.style.display = 'none';
+    document.body.style.overflow = '';
+    commentForm.reset();
+}
+
+// Adicionar listeners para o modal de comentários
+closeCommentsBtn.addEventListener('click', closeCommentsModal);
+commentsModal.addEventListener('click', (e) => {
+    if (e.target === commentsModal) closeCommentsModal();
+});
+
+// Função para formatar a data dos comentários
+function formatCommentTime(dateString) {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now - date;
+    const diffMin = Math.round(diffMs / 60000);
+    const diffHr = Math.round(diffMin / 60);
+    const diffDays = Math.round(diffHr / 24);
+    
+    if (diffMin < 1) return 'Agora mesmo';
+    if (diffMin < 60) return `${diffMin} min atrás`;
+    if (diffHr < 24) return `${diffHr} h atrás`;
+    if (diffDays === 1) return 'Ontem';
+    if (diffDays < 7) return `${diffDays} dias atrás`;
+    
+    // Se for mais de 7 dias, mostrar a data completa
+    return date.toLocaleDateString('pt-BR', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric'
+    });
+}
+
+// Função para criar elemento de comentário
+function createCommentElement(comment) {
+    const commentElement = document.createElement('div');
+    commentElement.className = 'comment-item';
+    commentElement.dataset.id = comment.id;
+    
+    const commentHeader = document.createElement('div');
+    commentHeader.className = 'comment-header';
+    
+    const commentTime = document.createElement('div');
+    commentTime.className = 'comment-time';
+    commentTime.textContent = formatCommentTime(comment.createdAt);
+    
+    commentHeader.appendChild(commentTime);
+    
+    const commentText = document.createElement('div');
+    commentText.className = 'comment-text';
+    commentText.textContent = comment.text;
+    
+    const commentActions = document.createElement('div');
+    commentActions.className = 'comment-actions';
+    
+    const deleteButton = document.createElement('button');
+    deleteButton.className = 'delete-comment-btn';
+    deleteButton.innerHTML = '<i class="fas fa-trash-alt"></i>';
+    deleteButton.title = 'Excluir comentário';
+    
+    // Evento para excluir comentário
+    deleteButton.addEventListener('click', async () => {
+        if (confirm('Tem certeza que deseja excluir este comentário?')) {
+            try {
+                const success = await deleteTaskComment(comment.id);
+                
+                if (success) {
+                    commentElement.style.opacity = '0';
+                    commentElement.style.height = '0';
+                    setTimeout(() => {
+                        commentElement.remove();
+                        
+                        // Remover do estado local
+                        const taskId = commentTaskId.value;
+                        if (taskComments[taskId]) {
+                            taskComments[taskId] = taskComments[taskId].filter(c => c.id !== comment.id);
+                            
+                            // Atualizar contador de comentários no botão
+                            updateCommentsCount(taskId);
+                        }
+                    }, 300);
+                }
+            } catch (error) {
+                console.error('Erro ao excluir comentário:', error);
+                showErrorNotification('Erro ao excluir comentário');
+            }
+        }
+    });
+    
+    commentActions.appendChild(deleteButton);
+    
+    commentElement.appendChild(commentHeader);
+    commentElement.appendChild(commentText);
+    commentElement.appendChild(commentActions);
+    
+    return commentElement;
+}
+
+// Função para carregar comentários de uma tarefa
+async function loadTaskComments(taskId) {
+    showCommentLoading();
+    
+    try {
+        // Se já temos os comentários no cache, usar eles
+        if (taskComments[taskId]) {
+            renderComments(taskComments[taskId]);
+        }
+        
+        // Buscar comentários atualizados do servidor
+        const comments = await fetchTaskComments(taskId);
+        
+        // Atualizar cache e renderizar
+        taskComments[taskId] = comments;
+        renderComments(comments);
+        
+        // Atualizar contador de comentários no botão
+        updateCommentsCount(taskId);
+    } catch (error) {
+        console.error('Erro ao carregar comentários:', error);
+        showErrorNotification('Erro ao carregar comentários');
+    } finally {
+        hideCommentLoading();
+    }
+}
+
+// Função para mostrar estado de carregamento de comentários
+function showCommentLoading() {
+    commentsList.innerHTML = `
+        <div class="comment-loading">
+            <i class="fas fa-spinner fa-spin"></i>
+            <p>Carregando comentários...</p>
+        </div>
+    `;
+}
+
+// Função para ocultar estado de carregamento de comentários
+function hideCommentLoading() {
+    const loading = commentsList.querySelector('.comment-loading');
+    if (loading) {
+        loading.remove();
+    }
+}
+
+// Função para renderizar comentários
+function renderComments(comments) {
+    commentsList.innerHTML = '';
+    
+    if (!comments || comments.length === 0) {
+        commentsList.innerHTML = `
+            <div class="empty-comments">
+                <i class="fas fa-comments"></i>
+                <p>Nenhum comentário ainda. Seja o primeiro a comentar!</p>
+            </div>
+        `;
+        return;
+    }
+    
+    comments.forEach(comment => {
+        const commentElement = createCommentElement(comment);
+        commentsList.appendChild(commentElement);
+    });
+    
+    // Rolar para o comentário mais recente
+    commentsList.scrollTop = commentsList.scrollHeight;
+}
+
+// Função para adicionar comentário
+commentForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const text = commentInput.value.trim();
+    const taskId = commentTaskId.value;
+    
+    if (!text) return;
+    
+    try {
+        // Mostrar indicador de carregamento
+        showButtonLoading(document.querySelector('.comment-submit-btn'));
+        
+        // Adicionar comentário ao Supabase
+        const comment = await addTaskComment(taskId, text);
+        
+        if (comment) {
+            // Adicionar ao estado local
+            if (!taskComments[taskId]) {
+                taskComments[taskId] = [];
+            }
+            
+            taskComments[taskId].push(comment);
+            
+            // Renderizar comentários
+            renderComments(taskComments[taskId]);
+            
+            // Atualizar contador de comentários no botão
+            updateCommentsCount(taskId);
+            
+            // Limpar formulário
+            commentForm.reset();
+            commentInput.focus();
+        } else {
+            showErrorNotification('Erro ao adicionar comentário');
+        }
+    } catch (error) {
+        console.error('Erro ao adicionar comentário:', error);
+        showErrorNotification('Erro ao adicionar comentário');
+    } finally {
+        // Esconder indicador de carregamento
+        hideButtonLoading(document.querySelector('.comment-submit-btn'));
+    }
+});
+
+// Função para carregar e exibir a contagem de comentários
+async function loadCommentsCount(taskId) {
+    try {
+        // Se ainda não temos os comentários dessa tarefa, carregá-los
+        if (!taskComments[taskId]) {
+            const comments = await fetchTaskComments(taskId);
+            taskComments[taskId] = comments;
+        }
+        
+        // Atualizar contador de comentários
+        updateCommentsCount(taskId);
+    } catch (error) {
+        console.error('Erro ao carregar contagem de comentários:', error);
+    }
+}
+
+// Função para atualizar contador de comentários
+function updateCommentsCount(taskId) {
+    const commentsCount = taskComments[taskId]?.length || 0;
+    
+    // Atualizar contador no botão da tarefa atual
+    document.querySelectorAll(`.task-item[data-id="${taskId}"] .comments-count`).forEach(countElement => {
+        if (commentsCount > 0) {
+            countElement.textContent = commentsCount > 99 ? '99+' : commentsCount;
+            countElement.style.display = 'flex';
+        } else {
+            countElement.style.display = 'none';
+        }
+    });
 } 

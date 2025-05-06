@@ -194,6 +194,34 @@
                         <div class="task-list"></div>
                     </div>
                 </div>
+                
+                <!-- Modal de Comentários -->
+                <div class="comments-modal" id="comments-modal" style="display: none;">
+                    <div class="comments-container">
+                        <div class="comments-header">
+                            <h3>Comentários</h3>
+                            <button type="button" class="close-comments-modal">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                        
+                        <div class="comments-body">
+                            <div class="comments-list" id="comments-list">
+                                <!-- Comentários serão adicionados aqui dinamicamente -->
+                            </div>
+                            
+                            <form id="comment-form" class="comment-form">
+                                <input type="hidden" id="comment-task-id">
+                                <div class="comment-input-container">
+                                    <input type="text" id="comment-input" placeholder="Adicionar um comentário..." required>
+                                    <button type="submit" class="comment-submit-btn">
+                                        <i class="fas fa-paper-plane"></i>
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
             </div>
         </main>
     </div>

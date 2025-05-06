@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Task Manager Pro</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="app-container">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <i class="fas fa-tasks-alt"></i>
+                <h1>TaskPro</h1>
+            </div>
+            <nav class="sidebar-nav">
+                <a href="#" class="active">
+                    <i class="fas fa-home"></i>
+                    <span>Dashboard</span>
+                </a>
+                <a href="#">
+                    <i class="fas fa-calendar-alt"></i>
+                    <span>Calendário</span>
+                </a>
+                <a href="#">
+                    <i class="fas fa-chart-line"></i>
+                    <span>Análises</span>
+                </a>
+                <a href="#">
+                    <i class="fas fa-cog"></i>
+                    <span>Configurações</span>
+                </a>
+            </nav>
+        </aside>
+
+        <main class="main-content">
+            <header class="main-header">
+                <div class="header-search">
+                    <i class="fas fa-search"></i>
+                    <input type="text" placeholder="Pesquisar tarefas...">
+                </div>
+                <div class="header-actions">
+                    <button class="theme-toggle">
+                        <i class="fas fa-moon"></i>
+                    </button>
+                    <div class="user-profile">
+                        <img src="https://ui-avatars.com/api/?name=User&background=random" alt="Perfil">
+                        <span>Usuário</span>
+                    </div>
+                </div>
+            </header>
+
+            <div class="content-wrapper">
+                <div class="page-header">
+                    <h2>Minhas Tarefas</h2>
+                    <button class="new-task-btn" id="new-task-btn">
+                        <i class="fas fa-plus"></i>
+                        Nova Tarefa
+                    </button>
+                </div>
+
+                <div class="task-form-modal" id="task-form-modal" style="display: none;">
+                    <form id="task-form" class="task-form">
+                        <div class="form-header">
+                            <h3>Nova Tarefa</h3>
+                            <button type="button" class="close-modal">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                        
+                        <div class="form-body">
+                            <div class="form-group">
+                                <label>
+                                    <i class="fas fa-pencil-alt"></i>
+                                    Título da Tarefa
+                                </label>
+                                <input type="text" id="task-input" placeholder="Digite o título da tarefa" required>
+                            </div>
+
+                            <div class="form-group">
+                                <label>
+                                    <i class="fas fa-layer-group"></i>
+                                    Categoria
+                                </label>
+                                <select id="task-category" required>
+                                    <option value="day">Dia</option>
+                                    <option value="week">Semana</option>
+                                    <option value="month">Mês</option>
+                                    <option value="year">Ano</option>
+                                </select>
+                            </div>
+
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>
+                                        <i class="fas fa-hourglass-start"></i>
+                                        Data de Início
+                                    </label>
+                                    <input type="datetime-local" id="task-start-date">
+                                </div>
+                                <div class="form-group">
+                                    <label>
+                                        <i class="fas fa-hourglass-end"></i>
+                                        Data Final
+                                    </label>
+                                    <input type="datetime-local" id="task-end-date">
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Status</label>
+                                <div class="status-options">
+                                    <label class="status-option">
+                                        <input type="radio" name="status" value="pending" checked>
+                                        <span class="status-badge pending">
+                                            <i class="fas fa-clock"></i>
+                                            Em andamento
+                                        </span>
+                                    </label>
+                                    <label class="status-option">
+                                        <input type="radio" name="status" value="completed">
+                                        <span class="status-badge completed">
+                                            <i class="fas fa-check"></i>
+                                            Concluído
+                                        </span>
+                                    </label>
+                                    <label class="status-option">
+                                        <input type="radio" name="status" value="finished">
+                                        <span class="status-badge finished">
+                                            <i class="fas fa-flag-checkered"></i>
+                                            Finalizado
+                                        </span>
+                                    </label>
+                                    <label class="status-option">
+                                        <input type="radio" name="status" value="late">
+                                        <span class="status-badge late">
+                                            <i class="fas fa-exclamation-triangle"></i>
+                                            Em atraso
+                                        </span>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-footer">
+                            <button type="button" class="btn-cancel">Cancelar</button>
+                            <button type="submit" class="btn-submit">
+                                <i class="fas fa-plus"></i>
+                                Adicionar Tarefa
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <div class="task-columns">
+                    <div class="task-column" id="day">
+                        <div class="column-header">
+                            <i class="fas fa-sun"></i>
+                            <h3>Dia</h3>
+                            <span class="task-count">0</span>
+                        </div>
+                        <div class="task-list"></div>
+                    </div>
+                    <div class="task-column" id="week">
+                        <div class="column-header">
+                            <i class="fas fa-calendar-week"></i>
+                            <h3>Semana</h3>
+                            <span class="task-count">0</span>
+                        </div>
+                        <div class="task-list"></div>
+                    </div>
+                    <div class="task-column" id="month">
+                        <div class="column-header">
+                            <i class="fas fa-calendar-alt"></i>
+                            <h3>Mês</h3>
+                            <span class="task-count">0</span>
+                        </div>
+                        <div class="task-list"></div>
+                    </div>
+                    <div class="task-column" id="year">
+                        <div class="column-header">
+                            <i class="fas fa-calendar"></i>
+                            <h3>Ano</h3>
+                            <span class="task-count">0</span>
+                        </div>
+                        <div class="task-list"></div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html> 

@@ -16,6 +16,76 @@ document.body.classList.add(localStorage.getItem('theme') || 'light');
 const now = new Date();
 const nowString = now.toISOString().slice(0, 16);
 
+// Estado global das tarefas - será preenchido pelo Supabase
+let tasks = {
+    day: [],
+    week: [],
+    month: [],
+    year: []
+};
+
+// Carregar tarefas do Supabase quando a página for carregada
+document.addEventListener('DOMContentLoaded', async () => {
+    // Mostrar estado de carregamento
+    showLoadingState();
+    
+    try {
+        // Verificar conexão com Supabase
+        const isConnected = await checkSupabaseConnection();
+        
+        if (!isConnected) {
+            // Se não conseguir conectar ao Supabase, usar o localStorage como fallback
+            tasks = JSON.parse(localStorage.getItem('tasks')) || {
+                day: [],
+                week: [],
+                month: [],
+                year: []
+            };
+            
+            showErrorNotification('Não foi possível conectar ao Supabase. Usando armazenamento local.');
+        } else {
+            // Buscar tarefas do Supabase
+            tasks = await fetchTasks();
+        }
+    } catch (error) {
+        console.error('Erro ao inicializar:', error);
+        
+        // Fallback para localStorage em caso de erro
+        tasks = JSON.parse(localStorage.getItem('tasks')) || {
+            day: [],
+            week: [],
+            month: [],
+            year: []
+        };
+        
+        showErrorNotification('Erro ao carregar tarefas. Usando armazenamento local.');
+    } finally {
+        // Ocultar estado de carregamento e renderizar tarefas
+        hideLoadingState();
+        renderTasks();
+    }
+});
+
+// Função para mostrar estado de carregamento
+function showLoadingState() {
+    // Adicionar um overlay de carregamento a cada coluna de tarefas
+    document.querySelectorAll('.task-list').forEach(list => {
+        list.innerHTML = `
+            <div class="loading-state">
+                <i class="fas fa-spinner fa-spin"></i>
+                <p>Carregando tarefas...</p>
+            </div>
+        `;
+    });
+}
+
+// Função para ocultar estado de carregamento
+function hideLoadingState() {
+    document.querySelectorAll('.loading-state').forEach(loading => {
+        loading.remove();
+    });
+}
+
 // Função para limpar restrições de data
 function clearDateRestrictions() {
     // Remover restrições dos inputs de data
@@ -108,14 +178,6 @@ function validateDates(startDate, endDate) {
     return end > start;
 }
 
-// Carregar tarefas do localStorage
-let tasks = JSON.parse(localStorage.getItem('tasks')) || {
-    day: [],
-    week: [],
-    month: [],
-    year: []
-};
-
 // Função para formatar data e hora
 function formatDateTime(dateString) {
     const options = {
@@ -150,9 +212,14 @@ function getStatusText(status) {
     return texts[status] || texts.pending;
 }
 
-// Função para salvar tarefas no localStorage
-function saveTasks() {
+// Função atualizada para salvar tarefas no Supabase E localStorage como fallback
+async function saveTasks() {
+    // Sempre salvar no localStorage como fallback
     localStorage.setItem('tasks', JSON.stringify(tasks));
+    
+    // Não precisa fazer nada no Supabase aqui, pois cada tarefa é salva individualmente
+    // quando é criada, atualizada ou excluída
+    
     updateTaskCounts();
 }
 
@@ -183,8 +250,10 @@ function isTaskInProgress(task) {
 }
 
 // Função para atualizar status de tarefas
-function updateTasksStatus() {
+async function updateTasksStatus() {
     let updated = false;
+    let updatedTasks = [];
+    
     Object.keys(tasks).forEach(category => {
         tasks[category].forEach(task => {
             if (task.status !== 'completed' && task.status !== 'finished') {
@@ -192,18 +261,41 @@ function updateTasksStatus() {
                 const isLate = isTaskLate(task);
                 const inProgress = isTaskInProgress(task);
                 
+                let newStatus = task.status;
+                
                 if (isLate && !wasLate) {
-                    task.status = 'late';
+                    newStatus = 'late';
                     updated = true;
                 } else if (inProgress && task.status !== 'pending') {
-                    task.status = 'pending';
+                    newStatus = 'pending';
                     updated = true;
+                }
+                
+                if (newStatus !== task.status) {
+                    task.status = newStatus;
+                    updatedTasks.push({
+                        id: task.id,
+                        status: newStatus
+                    });
                 }
             }
         });
     });
+    
     if (updated) {
+        // Atualizar no localStorage
         saveTasks();
+        
+        // Atualizar no Supabase (em paralelo)
+        try {
+            updatedTasks.forEach(async task => {
+                await updateTask(task.id, { status: task.status });
+            });
+        } catch (error) {
+            console.error('Erro ao atualizar status das tarefas no Supabase:', error);
+            showErrorNotification('Erro ao atualizar status das tarefas no servidor');
+        }
+        
         renderTasks();
     }
 }
@@ -226,6 +318,7 @@ function filterTasks(searchTerm) {
 function createTaskElement(task) {
     const taskElement = document.createElement('div');
     taskElement.className = `task-item status-${task.status}`;
+    taskElement.dataset.id = task.id; // Armazenar o ID para operações CRUD
     
     // Adicionar classe de tarefa fixada, se aplicável
     if (task.pinned) {
@@ -320,49 +413,87 @@ function renderTasks() {
             return 0;
         });
         
-        sortedTasks.forEach((task, index) => {
-            // Encontrar o índice correto na matriz original
-            const originalIndex = tasks[category].findIndex(t => 
-                t.text === task.text && 
-                t.startDate === task.startDate && 
-                t.endDate === task.endDate
-            );
-            
+        sortedTasks.forEach((task) => {
             const { taskElement, statusSelect, pinButton, deleteButton } = createTaskElement(task);
             
             // Evento para atualizar status
-            statusSelect.addEventListener('change', (e) => {
+            statusSelect.addEventListener('change', async (e) => {
                 const newStatus = e.target.value;
-                tasks[category][originalIndex].status = newStatus;
                 
-                // Atualizar classe do elemento da tarefa
-                taskElement.className = `task-item status-${newStatus}`;
-                if (task.pinned) {
-                    taskElement.classList.add('pinned');
+                // Atualizar no estado local
+                const originalIndex = tasks[category].findIndex(t => t.id === task.id);
+                if (originalIndex !== -1) {
+                    tasks[category][originalIndex].status = newStatus;
+                    
+                    // Atualizar classe do elemento da tarefa
+                    taskElement.className = `task-item status-${newStatus}`;
+                    if (task.pinned) {
+                        taskElement.classList.add('pinned');
+                    }
+                    
+                    // Atualizar classe do select
+                    statusSelect.className = `status-${newStatus}`;
+                    
+                    // Salvar no localStorage
+                    saveTasks();
+                    
+                    // Salvar no Supabase
+                    try {
+                        await updateTask(task.id, { status: newStatus });
+                    } catch (error) {
+                        console.error('Erro ao atualizar status no Supabase:', error);
+                        showErrorNotification('Erro ao atualizar status no servidor');
+                    }
                 }
-                
-                // Atualizar classe do select
-                statusSelect.className = `status-${newStatus}`;
-                
-                saveTasks();
             });
             
             // Evento para fixar/desafixar tarefa
-            pinButton.addEventListener('click', () => {
-                tasks[category][originalIndex].pinned = !tasks[category][originalIndex].pinned;
-                saveTasks();
-                renderTasks(); // Re-renderizar para atualizar a ordem
+            pinButton.addEventListener('click', async () => {
+                const originalIndex = tasks[category].findIndex(t => t.id === task.id);
+                if (originalIndex !== -1) {
+                    const newPinnedState = !tasks[category][originalIndex].pinned;
+                    tasks[category][originalIndex].pinned = newPinnedState;
+                    
+                    // Salvar no localStorage
+                    saveTasks();
+                    
+                    // Salvar no Supabase
+                    try {
+                        await updateTask(task.id, { pinned: newPinnedState });
+                        renderTasks(); // Re-renderizar para atualizar a ordem
+                    } catch (error) {
+                        console.error('Erro ao atualizar pin no Supabase:', error);
+                        showErrorNotification('Erro ao fixar/desafixar tarefa no servidor');
+                    }
+                }
             });
             
             // Evento para deletar tarefa
-            deleteButton.addEventListener('click', (e) => {
+            deleteButton.addEventListener('click', async (e) => {
                 e.stopPropagation();
+                
+                // Animar a saída da tarefa
                 taskElement.style.opacity = '0';
                 taskElement.style.transform = 'translateY(20px)';
-                setTimeout(() => {
-                    tasks[category].splice(originalIndex, 1);
-                    renderTasks();
-                    saveTasks();
+                
+                setTimeout(async () => {
+                    const originalIndex = tasks[category].findIndex(t => t.id === task.id);
+                    if (originalIndex !== -1) {
+                        // Remover do estado local
+                        tasks[category].splice(originalIndex, 1);
+                        
+                        // Salvar no localStorage
+                        saveTasks();
+                        renderTasks();
+                        
+                        // Remover do Supabase
+                        try {
+                            await deleteTask(task.id);
+                        } catch (error) {
+                            console.error('Erro ao deletar tarefa no Supabase:', error);
+                            showErrorNotification('Erro ao excluir tarefa no servidor');
+                        }
+                    }
                 }, 300);
             });
             
@@ -379,7 +510,7 @@ searchInput.addEventListener('input', (e) => {
 });
 
 // Evento de submit do formulário
-taskForm.addEventListener('submit', (e) => {
+taskForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     
     const text = taskInput.value.trim();
@@ -389,59 +520,100 @@ taskForm.addEventListener('submit', (e) => {
     
     // Verificar se todos os campos estão preenchidos
     if (!text || !startDate || !endDate) {
-        const notification = document.createElement('div');
-        notification.className = 'notification error';
-        notification.innerHTML = `
-            <i class="fas fa-exclamation-circle"></i>
-            Todos os campos são obrigatórios
-        `;
-        document.body.appendChild(notification);
-        
-        setTimeout(() => {
-            notification.style.opacity = '0';
-            setTimeout(() => notification.remove(), 3000);
-        }, 3000);
+        showErrorNotification('Todos os campos são obrigatórios');
         return;
     }
     
     const status = document.querySelector('input[name="status"]:checked').value;
     
     if (!validateDates(startDate, endDate)) {
-        const notification = document.createElement('div');
-        notification.className = 'notification error';
-        notification.innerHTML = `
-            <i class="fas fa-exclamation-circle"></i>
-            A data/hora final deve ser posterior à data/hora inicial
-        `;
-        document.body.appendChild(notification);
-        
-        setTimeout(() => {
-            notification.style.opacity = '0';
-            setTimeout(() => notification.remove(), 3000);
-        }, 3000);
+        showErrorNotification('A data/hora final deve ser posterior à data/hora inicial');
         return;
     }
     
     if (text && startDate && endDate) {
-        tasks[category].push({
-            text,
-            startDate,
-            endDate,
-            status,
-            pinned: false,
-            createdAt: new Date().toISOString()
+        // Formatar as datas para ISO
+        const startISO = new Date(startDate).toISOString();
+        const endISO = new Date(endDate).toISOString();
+        const createdISO = new Date().toISOString();
+        
+        console.log("Datas formatadas:", {
+            startOriginal: startDate,
+            startISO,
+            endOriginal: endDate,
+            endISO
         });
         
-        saveTasks();
-        renderTasks();
-        showSuccessNotification(`Tarefa adicionada com sucesso!`);
+        // Criar objeto da tarefa
+        const newTask = {
+            text,
+            category,
+            startDate: startISO,
+            endDate: endISO,
+            status,
+            pinned: false,
+            createdAt: createdISO
+        };
+        
+        try {
+            // Mostrar indicador de carregamento
+            showButtonLoading(document.querySelector('.btn-submit'));
+            
+            console.log("Enviando tarefa:", newTask);
+            
+            // Adicionar ao Supabase primeiro
+            const savedTask = await addTask(newTask);
+            
+            if (savedTask) {
+                // Se bem-sucedido no Supabase, adiciona ao estado local
+                tasks[category].push(savedTask);
+                saveTasks(); // Salva no localStorage também
+                renderTasks();
+                showSuccessNotification('Tarefa adicionada com sucesso!');
+            } else {
+                // Se falhar no Supabase, ainda adiciona localmente, mas com aviso
+                newTask.id = Date.now(); // Gerar ID temporário
+                tasks[category].push(newTask);
+                saveTasks();
+                renderTasks();
+                showWarningNotification('Tarefa salva localmente, mas não no servidor.');
+            }
+        } catch (error) {
+            console.error('Erro ao adicionar tarefa:', error);
+            
+            // Adicionar localmente mesmo em caso de erro
+            newTask.id = Date.now(); // Gerar ID temporário
+            tasks[category].push(newTask);
+            saveTasks();
+            renderTasks();
+            showErrorNotification('Erro ao salvar no servidor. Tarefa salva apenas localmente.');
+        } finally {
+            // Esconder indicador de carregamento
+            hideButtonLoading(document.querySelector('.btn-submit'));
+        }
     }
 });
+
+// Função para mostrar indicador de carregamento em botão
+function showButtonLoading(button) {
+    const originalContent = button.innerHTML;
+    button.dataset.originalContent = originalContent;
+    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processando...';
+    button.disabled = true;
+}
+
+// Função para esconder indicador de carregamento em botão
+function hideButtonLoading(button) {
+    if (button.dataset.originalContent) {
+        button.innerHTML = button.dataset.originalContent;
+        button.disabled = false;
+    }
+}
 
 // Verificar status das tarefas periodicamente
 setInterval(updateTasksStatus, 1000 * 60); // Atualiza a cada minuto
 
-// Adicionar estilos CSS para notificações e tema escuro
+// Adicionar estilos CSS para notificações, tema escuro e indicadores de carregamento
 const style = document.createElement('style');
 style.textContent = `
     .notification {
@@ -464,8 +636,32 @@ style.textContent = `
         color: #166534;
     }
     
+    .notification.error {
+        background-color: #fee2e2;
+        color: #b91c1c;
+    }
+    
+    .notification.warning {
+        background-color: #fef3c7;
+        color: #92400e;
+    }
+    
     .notification i {
         font-size: 20px;
+    }
+    
+    .loading-state {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 2rem;
+        color: var(--text-secondary);
+        gap: 1rem;
+    }
+    
+    .loading-state i {
+        font-size: 2rem;
     }
     
     .dark-theme {
@@ -491,10 +687,7 @@ style.textContent = `
 `;
 document.head.appendChild(style);
 
-// Renderizar tarefas ao carregar a página
-renderTasks();
-
-// Melhorar o feedback após adicionar uma tarefa
+// Funções para notificações
 function showSuccessNotification(message) {
     const notification = document.createElement('div');
     notification.className = 'notification success';
@@ -511,4 +704,34 @@ function showSuccessNotification(message) {
     
     // Garantir que o modal está fechado
     closeModal();
+}
+
+function showErrorNotification(message) {
+    const notification = document.createElement('div');
+    notification.className = 'notification error';
+    notification.innerHTML = `
+        <i class="fas fa-exclamation-circle"></i>
+        ${message}
+    `;
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+        notification.style.opacity = '0';
+        setTimeout(() => notification.remove(), 300);
+    }, 4000);
+}
+
+function showWarningNotification(message) {
+    const notification = document.createElement('div');
+    notification.className = 'notification warning';
+    notification.innerHTML = `
+        <i class="fas fa-exclamation-triangle"></i>
+        ${message}
+    `;
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+        notification.style.opacity = '0';
+        setTimeout(() => notification.remove(), 300);
+    }, 3000);
 } 

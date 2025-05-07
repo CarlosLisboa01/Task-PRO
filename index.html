@@ -13,6 +13,9 @@
     <script>
         const supabaseJs = supabase;
     </script>
+    
+    <!-- Chart.js para gráficos -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
     <div class="app-container">
@@ -22,15 +25,15 @@
                 <h1>TaskPro</h1>
             </div>
             <nav class="sidebar-nav">
-                <a href="#" class="active">
+                <a href="#dashboard" class="active">
                     <i class="fas fa-home"></i>
                     <span>Dashboard</span>
                 </a>
-                <a href="#">
+                <a href="#calendario">
                     <i class="fas fa-calendar-alt"></i>
                     <span>Calendário</span>
                 </a>
-                <a href="#">
+                <a href="#analises">
                     <i class="fas fa-chart-line"></i>
                     <span>Análises</span>
                 </a>
@@ -58,106 +61,108 @@
                 </div>
             </header>
 
-            <div class="content-wrapper">
+            <!-- Modal de Formulário de Tarefa (agora fora das visões) -->
+            <div class="task-form-modal" id="task-form-modal" style="display: none;">
+                <form id="task-form" class="task-form">
+                    <div class="form-header">
+                        <h3>Nova Tarefa</h3>
+                        <button type="button" class="close-modal">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    
+                    <div class="form-body">
+                        <div class="form-group">
+                            <label>
+                                <i class="fas fa-pencil-alt"></i>
+                                Título da Tarefa
+                            </label>
+                            <input type="text" id="task-input" placeholder="Digite o título da tarefa" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label>
+                                <i class="fas fa-layer-group"></i>
+                                Categoria
+                            </label>
+                            <select id="task-category" required>
+                                <option value="day">Dia</option>
+                                <option value="week">Semana</option>
+                                <option value="month">Mês</option>
+                                <option value="year">Ano</option>
+                            </select>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>
+                                    <i class="fas fa-hourglass-start"></i>
+                                    Data de Início
+                                </label>
+                                <input type="datetime-local" id="task-start-date">
+                            </div>
+                            <div class="form-group">
+                                <label>
+                                    <i class="fas fa-hourglass-end"></i>
+                                    Data Final
+                                </label>
+                                <input type="datetime-local" id="task-end-date">
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Status</label>
+                            <div class="status-options">
+                                <label class="status-option">
+                                    <input type="radio" name="status" value="pending" checked>
+                                    <span class="status-badge pending">
+                                        <i class="fas fa-clock"></i>
+                                        Em andamento
+                                    </span>
+                                </label>
+                                <label class="status-option">
+                                    <input type="radio" name="status" value="completed">
+                                    <span class="status-badge completed">
+                                        <i class="fas fa-check"></i>
+                                        Concluído
+                                    </span>
+                                </label>
+                                <label class="status-option">
+                                    <input type="radio" name="status" value="finished">
+                                    <span class="status-badge finished">
+                                        <i class="fas fa-flag-checkered"></i>
+                                        Finalizado
+                                    </span>
+                                </label>
+                                <label class="status-option">
+                                    <input type="radio" name="status" value="late">
+                                    <span class="status-badge late">
+                                        <i class="fas fa-exclamation-triangle"></i>
+                                        Em atraso
+                                    </span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-footer">
+                        <button type="button" class="btn-cancel">Cancelar</button>
+                        <button type="submit" class="btn-submit">
+                            <i class="fas fa-plus"></i>
+                            Adicionar Tarefa
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Dashboard View -->
+            <div id="dashboard-view" class="content-wrapper">
                 <div class="page-header">
                     <h2>Minhas Tarefas</h2>
                     <button class="new-task-btn" id="new-task-btn">
                         <i class="fas fa-plus"></i>
                         Nova Tarefa
                     </button>
-                </div>
-
-                <div class="task-form-modal" id="task-form-modal" style="display: none;">
-                    <form id="task-form" class="task-form">
-                        <div class="form-header">
-                            <h3>Nova Tarefa</h3>
-                            <button type="button" class="close-modal">
-                                <i class="fas fa-times"></i>
-                            </button>
-                        </div>
-                        
-                        <div class="form-body">
-                            <div class="form-group">
-                                <label>
-                                    <i class="fas fa-pencil-alt"></i>
-                                    Título da Tarefa
-                                </label>
-                                <input type="text" id="task-input" placeholder="Digite o título da tarefa" required>
-                            </div>
-
-                            <div class="form-group">
-                                <label>
-                                    <i class="fas fa-layer-group"></i>
-                                    Categoria
-                                </label>
-                                <select id="task-category" required>
-                                    <option value="day">Dia</option>
-                                    <option value="week">Semana</option>
-                                    <option value="month">Mês</option>
-                                    <option value="year">Ano</option>
-                                </select>
-                            </div>
-
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label>
-                                        <i class="fas fa-hourglass-start"></i>
-                                        Data de Início
-                                    </label>
-                                    <input type="datetime-local" id="task-start-date">
-                                </div>
-                                <div class="form-group">
-                                    <label>
-                                        <i class="fas fa-hourglass-end"></i>
-                                        Data Final
-                                    </label>
-                                    <input type="datetime-local" id="task-end-date">
-                                </div>
-                            </div>
-
-                            <div class="form-group">
-                                <label>Status</label>
-                                <div class="status-options">
-                                    <label class="status-option">
-                                        <input type="radio" name="status" value="pending" checked>
-                                        <span class="status-badge pending">
-                                            <i class="fas fa-clock"></i>
-                                            Em andamento
-                                        </span>
-                                    </label>
-                                    <label class="status-option">
-                                        <input type="radio" name="status" value="completed">
-                                        <span class="status-badge completed">
-                                            <i class="fas fa-check"></i>
-                                            Concluído
-                                        </span>
-                                    </label>
-                                    <label class="status-option">
-                                        <input type="radio" name="status" value="finished">
-                                        <span class="status-badge finished">
-                                            <i class="fas fa-flag-checkered"></i>
-                                            Finalizado
-                                        </span>
-                                    </label>
-                                    <label class="status-option">
-                                        <input type="radio" name="status" value="late">
-                                        <span class="status-badge late">
-                                            <i class="fas fa-exclamation-triangle"></i>
-                                            Em atraso
-                                        </span>
-                                    </label>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="form-footer">
-                            <button type="button" class="btn-cancel">Cancelar</button>
-                            <button type="submit" class="btn-submit">
-                                <i class="fas fa-plus"></i>
-                                Adicionar Tarefa
-                            </button>
-                        </div>
-                    </form>
                 </div>
 
                 <div class="task-columns">
@@ -194,38 +199,141 @@
                         <div class="task-list"></div>
                     </div>
                 </div>
+            </div>
+            
+            <!-- Calendar View -->
+            <div id="calendar-view" class="content-wrapper" style="display: none;">
+                <div class="page-header">
+                    <h2>Calendário de Tarefas</h2>
+                    <button class="new-task-btn" id="new-task-btn-calendar" onclick="prepareNewTask()">
+                        <i class="fas fa-plus"></i>
+                        Nova Tarefa
+                    </button>
+                </div>
                 
-                <!-- Modal de Comentários -->
-                <div class="comments-modal" id="comments-modal" style="display: none;">
-                    <div class="comments-container">
-                        <div class="comments-header">
-                            <h3>Comentários</h3>
-                            <button type="button" class="close-comments-modal">
-                                <i class="fas fa-times"></i>
-                            </button>
+                <div class="calendar-container" id="calendar-container">
+                    <!-- O calendário será renderizado dinamicamente aqui -->
+                </div>
+            </div>
+            
+            <!-- Análises View -->
+            <div id="analises-view" class="content-wrapper" style="display: none;">
+                <div class="page-header">
+                    <h2>Análise de Tarefas</h2>
+                    <button class="export-btn">
+                        <i class="fas fa-file-export"></i>
+                        Exportar Dados
+                    </button>
+                </div>
+                
+                <div class="analytics-container">
+                    <!-- Primeira linha - Resumo e Gráfico de Pizza -->
+                    <div class="analytics-row">
+                        <div class="analytics-card summary-card">
+                            <div class="card-header">
+                                <h3><i class="fas fa-tasks"></i> Resumo de Tarefas</h3>
+                            </div>
+                            <div class="card-body">
+                                <div class="summary-item">
+                                    <div class="summary-label">Total de Tarefas</div>
+                                    <div class="summary-value" id="total-tasks">34</div>
+                                </div>
+                                <div class="summary-item">
+                                    <div class="summary-label">Tarefas Concluídas</div>
+                                    <div class="summary-value" id="completed-tasks">56%</div>
+                                </div>
+                                <div class="summary-item">
+                                    <div class="summary-label">Tarefas Atrasadas</div>
+                                    <div class="summary-value" id="late-tasks">18%</div>
+                                </div>
+                                <div class="summary-item">
+                                    <div class="summary-label">Tempo Médio de Conclusão</div>
+                                    <div class="summary-value" id="average-time">2,5h</div>
+                                </div>
+                            </div>
                         </div>
                         
-                        <div class="comments-body">
-                            <div class="comments-list" id="comments-list">
-                                <!-- Comentários serão adicionados aqui dinamicamente -->
+                        <div class="analytics-card chart-card">
+                            <div class="card-header">
+                                <h3><i class="fas fa-chart-pie"></i> Distribuição de Tarefas</h3>
+                                <button class="view-details-btn">Ver Detalhes</button>
                             </div>
-                            
-                            <form id="comment-form" class="comment-form">
-                                <input type="hidden" id="comment-task-id">
-                                <div class="comment-input-container">
-                                    <input type="text" id="comment-input" placeholder="Adicionar um comentário..." required>
-                                    <button type="submit" class="comment-submit-btn">
-                                        <i class="fas fa-paper-plane"></i>
-                                    </button>
-                                </div>
-                            </form>
+                            <div class="card-body">
+                                <canvas id="tasks-distribution-chart"></canvas>
+                            </div>
                         </div>
+                    </div>
+                    
+                    <!-- Segunda linha - Evolução e Distribuição por Dia -->
+                    <div class="analytics-row">
+                        <div class="analytics-card chart-card">
+                            <div class="card-header">
+                                <h3><i class="fas fa-chart-line"></i> Evolução de Tarefas Concluídas</h3>
+                                <button class="view-details-btn">Ver Detalhes</button>
+                            </div>
+                            <div class="card-body">
+                                <canvas id="tasks-evolution-chart"></canvas>
+                            </div>
+                        </div>
+                        
+                        <div class="analytics-card chart-card">
+                            <div class="card-header">
+                                <h3><i class="fas fa-chart-bar"></i> Tarefas por Dia da Semana</h3>
+                                <button class="view-details-btn">Ver Detalhes</button>
+                            </div>
+                            <div class="card-body">
+                                <canvas id="tasks-by-day-chart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Terceira linha - Distribuição por Horário -->
+                    <div class="analytics-row">
+                        <div class="analytics-card chart-card full-width">
+                            <div class="card-header">
+                                <h3><i class="fas fa-clock"></i> Distribuição de Tarefas por Horário</h3>
+                                <button class="view-details-btn">Ver Detalhes</button>
+                            </div>
+                            <div class="card-body">
+                                <canvas id="tasks-by-hour-chart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+                
+            <!-- Modal de Comentários -->
+            <div class="comments-modal" id="comments-modal" style="display: none;">
+                <div class="comments-container">
+                    <div class="comments-header">
+                        <h3>Comentários</h3>
+                        <button type="button" class="close-comments-modal">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    
+                    <div class="comments-body">
+                        <div class="comments-list" id="comments-list">
+                            <!-- Comentários serão adicionados aqui dinamicamente -->
+                        </div>
+                        
+                        <form id="comment-form" class="comment-form">
+                            <input type="hidden" id="comment-task-id">
+                            <div class="comment-input-container">
+                                <input type="text" id="comment-input" placeholder="Adicionar um comentário..." required>
+                                <button type="submit" class="comment-submit-btn">
+                                    <i class="fas fa-paper-plane"></i>
+                                </button>
+                            </div>
+                        </form>
                     </div>
                 </div>
             </div>
         </main>
     </div>
     <script src="supabase-config.js"></script>
+    <script src="calendar.js"></script>
+    <script src="analytics.js"></script>
     <script src="script.js"></script>
 </body>
 </html> 

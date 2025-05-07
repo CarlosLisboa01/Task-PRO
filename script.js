@@ -74,8 +74,63 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Ocultar estado de carregamento e renderizar tarefas
         hideLoadingState();
         renderTasks();
+        
+        // Configurar todos os botões de Nova Tarefa na aplicação
+        setupAllTaskButtons();
+        
+        // Configurar a navegação entre as páginas
+        setupNavigation();
+        
+        // Assegura que os gráficos sejam atualizados na inicialização
+        if (window.location.hash === '#analises' && typeof updateAnalytics === 'function') {
+            updateAnalytics();
+        }
     }
 });
+
+// Função para configurar todos os botões de Nova Tarefa
+function setupAllTaskButtons() {
+    // Configurar botão do dashboard
+    const dashboardNewTaskBtn = document.getElementById('new-task-btn');
+    if (dashboardNewTaskBtn) {
+        dashboardNewTaskBtn.removeEventListener('click', prepareNewTask);
+        dashboardNewTaskBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            prepareNewTask();
+        });
+    }
+    
+    // Configurar botão do calendário
+    const calendarNewTaskBtn = document.getElementById('new-task-btn-calendar');
+    if (calendarNewTaskBtn) {
+        calendarNewTaskBtn.removeEventListener('click', prepareNewTask);
+        calendarNewTaskBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            prepareNewTask();
+        });
+    }
+    
+    // Usar delegação de eventos para garantir que novos botões também funcionem
+    document.removeEventListener('click', handleTaskButtonClick);
+    document.addEventListener('click', handleTaskButtonClick);
+}
+
+// Handler para o clique nos botões de Nova Tarefa
+function handleTaskButtonClick(e) {
+    const target = e.target;
+    
+    // Verificar se o clique foi em algum botão de nova tarefa
+    const newTaskButton = 
+        target.closest('#new-task-btn') || 
+        target.closest('#new-task-btn-calendar');
+    
+    if (newTaskButton) {
+        console.log('Botão de nova tarefa clicado:', newTaskButton.id);
+        e.preventDefault();
+        e.stopPropagation();
+        prepareNewTask();
+    }
+}
 
 // Função para mostrar estado de carregamento
 function showLoadingState() {
@@ -111,6 +166,7 @@ clearDateRestrictions();
 
 // Controle do modal
 function openModal() {
+    console.log("Abrindo modal...");
     taskFormModal.style.display = 'flex';
     taskInput.focus();
     document.body.style.overflow = 'hidden';
@@ -118,6 +174,7 @@ function openModal() {
 }
 
 function closeModal() {
+    console.log("Fechando modal...");
     taskFormModal.style.display = 'none';
     taskForm.reset();
     document.body.style.overflow = '';
@@ -128,6 +185,14 @@ taskFormModal.style.display = 'none';
 
 // Ajuste para o fluxo de adição de tarefa - limpar todos os dados
 function prepareNewTask() {
+    console.log("Preparando nova tarefa...");
+    
+    // Verificar se o modal existe
+    if (!taskFormModal) {
+        console.error("Modal não encontrado!");
+        return;
+    }
+    
     // Limpar o formulário
     taskForm.reset();
     
@@ -140,10 +205,6 @@ function prepareNewTask() {
     // Abrir o modal
     openModal();
 }
-
-// Substituir o listener direto por nossa função de preparação
-newTaskBtn.removeEventListener('click', openModal);
-newTaskBtn.addEventListener('click', prepareNewTask);
 
 // Restaurar os event listeners para fechar o modal
 closeModalBtn.addEventListener('click', closeModal);
@@ -232,6 +293,11 @@ async function saveTasks() {
     // quando é criada, atualizada ou excluída
     
     updateTaskCounts();
+    
+    // Atualizar a página de análises, se estiver inicializada
+    if (typeof updateAnalytics === 'function') {
+        updateAnalytics();
+    }
 }
 
 // Função para atualizar contadores de tarefas
@@ -467,7 +533,7 @@ function renderTasks() {
                     // Atualizar classe do select
                     statusSelect.className = `status-${newStatus}`;
                     
-                    // Salvar no localStorage
+                    // Salvar no localStorage e atualizar analytics
                     saveTasks();
                     
                     // Salvar no Supabase
@@ -487,7 +553,7 @@ function renderTasks() {
                     const newPinnedState = !tasks[category][originalIndex].pinned;
                     tasks[category][originalIndex].pinned = newPinnedState;
                     
-                    // Salvar no localStorage
+                    // Salvar no localStorage e atualizar analytics
                     saveTasks();
                     
                     // Salvar no Supabase
@@ -515,7 +581,7 @@ function renderTasks() {
                         // Remover do estado local
                         tasks[category].splice(originalIndex, 1);
                         
-                        // Salvar no localStorage
+                        // Salvar no localStorage e atualizar analytics
                         saveTasks();
                         renderTasks();
                         
@@ -600,14 +666,14 @@ taskForm.addEventListener('submit', async (e) => {
             if (savedTask) {
                 // Se bem-sucedido no Supabase, adiciona ao estado local
                 tasks[category].push(savedTask);
-                saveTasks(); // Salva no localStorage também
+                saveTasks(); // Salva no localStorage também e atualiza analytics
                 renderTasks();
                 showSuccessNotification('Tarefa adicionada com sucesso!');
             } else {
                 // Se falhar no Supabase, ainda adiciona localmente, mas com aviso
                 newTask.id = Date.now(); // Gerar ID temporário
                 tasks[category].push(newTask);
-                saveTasks();
+                saveTasks(); // Atualiza analytics
                 renderTasks();
                 showWarningNotification('Tarefa salva localmente, mas não no servidor.');
             }
@@ -1022,4 +1088,78 @@ function updateCommentsCount(taskId) {
             countElement.style.display = 'none';
         }
     });
+}
+
+// Função para configurar a navegação entre as páginas
+function setupNavigation() {
+    const menuItems = document.querySelectorAll('.sidebar-nav a');
+    const dashboardView = document.getElementById('dashboard-view');
+    const calendarView = document.getElementById('calendar-view');
+    const analisesView = document.getElementById('analises-view');
+    
+    // Verificar qual página está ativa com base na URL hash
+    function checkActivePage() {
+        const hash = window.location.hash || '#dashboard';
+        
+        // Remover a classe active de todos os itens de menu
+        menuItems.forEach(item => {
+            item.classList.remove('active');
+        });
+        
+        // Adicionar a classe active ao item de menu correspondente à página atual
+        const activeMenuItem = document.querySelector(`.sidebar-nav a[href="${hash}"]`);
+        if (activeMenuItem) {
+            activeMenuItem.classList.add('active');
+        }
+        
+        // Ocultar todas as views
+        if (dashboardView) dashboardView.style.display = 'none';
+        if (calendarView) calendarView.style.display = 'none';
+        if (analisesView) analisesView.style.display = 'none';
+        
+        // Mostrar a view correspondente
+        if (hash === '#calendario') {
+            if (calendarView) calendarView.style.display = 'block';
+            
+            // Inicializar o calendário se necessário
+            if (typeof initCalendar === 'function') {
+                initCalendar();
+                loadCalendarTasks();
+            }
+        } else if (hash === '#analises') {
+            if (analisesView) analisesView.style.display = 'block';
+            
+            // Inicializar os gráficos de análise se necessário
+            if (typeof initAnalytics === 'function') {
+                initAnalytics();
+                
+                // Garantir que os dados dos gráficos estejam atualizados
+                if (typeof updateAnalytics === 'function') {
+                    updateAnalytics();
+                }
+            }
+        } else {
+            if (dashboardView) dashboardView.style.display = 'block';
+        }
+    }
+    
+    // Configurar os event listeners para os itens de menu
+    menuItems.forEach(item => {
+        item.addEventListener('click', function(e) {
+            // Evitar o comportamento padrão do link
+            e.preventDefault();
+            
+            // Atualizar a hash da URL
+            window.location.hash = this.getAttribute('href');
+            
+            // Verificar qual página está ativa
+            checkActivePage();
+        });
+    });
+    
+    // Verificar qual página está ativa quando a página é carregada
+    checkActivePage();
+    
+    // Adicionar um listener para o evento hashchange
+    window.addEventListener('hashchange', checkActivePage);
 } 

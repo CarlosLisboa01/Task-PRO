@@ -114,6 +114,9 @@ function initTasksDistributionChart() {
     const finishedPercentage = Math.round((finishedCount / total) * 100);
     const latePercentage = Math.round((lateCount / total) * 100);
     
+    // Status correspondentes a cada segmento do gráfico
+    const statusMap = ['pending', 'completed', 'finished', 'late'];
+    
     // Configuração do gráfico
     chartsInstances.distribution = new Chart(ctx, {
         type: 'doughnut',
@@ -154,6 +157,30 @@ function initTasksDistributionChart() {
                                 context.dataIndex === 2 ? finishedCount : lateCount
                             } tarefas)`;
                         }
+                    }
+                }
+            },
+            onClick: function(event, elements) {
+                if (elements && elements.length > 0) {
+                    const index = elements[0].index;
+                    const status = statusMap[index];
+                    
+                    console.log(`Gráfico clicado - índice: ${index}, status: ${status}`);
+                    console.log(`Status mapeado: pendente(0), concluído(1), finalizado(2), atrasado(3)`);
+                    
+                    // Chamar a função global diretamente
+                    if (typeof window.filterTasksByStatus === 'function') {
+                        // Feedback visual imediato
+                        const button = document.querySelector('.analytics-card:has(#tasks-distribution-chart) .view-details-btn');
+                        if (button) {
+                            const originalText = button.textContent;
+                            button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Filtrando...';
+                            setTimeout(() => button.textContent = originalText, 1000);
+                        }
+                        
+                        window.filterTasksByStatus(status);
+                    } else {
+                        console.error("Função filterTasksByStatus não encontrada no escopo global");
                     }
                 }
             }

@@ -331,6 +331,7 @@ body {
 .status-badge.completed { color: var(--status-completed); }
 .status-badge.finished { color: var(--status-finished); }
 .status-badge.late { color: var(--status-late); }
+.status-badge.all { color: var(--primary-color); }
 
 .status-option input[type="radio"]:checked + .status-badge {
     background-color: var(--primary-light);
@@ -1709,4 +1710,55 @@ body {
 
 .dark-theme .summary-value {
     color: #a5b4fc;
+}
+
+/* Estilo para tornar o gráfico de distribuição clicável */
+#tasks-distribution-chart {
+    cursor: pointer;
+    transition: transform 0.2s ease;
+}
+
+#tasks-distribution-chart:hover {
+    transform: scale(1.02);
+}
+
+.chart-card:has(#tasks-distribution-chart) {
+    position: relative;
+}
+
+.chart-card:has(#tasks-distribution-chart)::after {
+    content: 'Clique nas cores para filtrar tarefas';
+    display: block;
+    text-align: center;
+    color: var(--text-secondary);
+    font-size: 12px;
+    margin-top: 10px;
+    font-style: italic;
+}
+
+.chart-card:has(#tasks-distribution-chart)::before {
+    content: '';
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 24px;
+    height: 24px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%237c3aed'%3E%3Cpath d='M8 12a1 1 0 01-1-1V7a1 1 0 112 0v4a1 1 0 01-1 1zm4 0a1 1 0 01-1-1V4a1 1 0 112 0v7a1 1 0 01-1 1zm4 0a1 1 0 01-1-1v-4a1 1 0 112 0v4a1 1 0 01-1 1zm-8 8a1 1 0 01-1-1v-4a1 1 0 112 0v4a1 1 0 01-1 1zm4 0a1 1 0 01-1-1v-4a1 1 0 112 0v4a1 1 0 01-1 1zm4 0a1 1 0 01-1-1V12a1 1 0 112 0v7a1 1 0 01-1 1z'/%3E%3C/svg%3E");
+    background-size: contain;
+    background-repeat: no-repeat;
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+/* Mensagem de lista vazia quando filtrada */
+.empty-message.filtered-empty {
+    background-color: rgba(124, 58, 237, 0.05);
+    border: 1px dashed var(--primary-color);
+    border-radius: var(--border-radius);
+    padding: 20px;
+    margin: 10px 0;
+}
+
+.empty-message.filtered-empty i {
+    color: var(--primary-color);
 } 

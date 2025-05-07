@@ -35,6 +35,105 @@ let tasks = {
 // Estado global para os comentários das tarefas
 let taskComments = {};
 
+// Definir a função filterTasksByStatus no escopo global
+window.filterTasksByStatus = function(status) {
+    console.log("Filtrando por status (global):", status);
+    
+    // Assegurar que estamos na página correta
+    if (window.location.hash !== '#dashboard' && window.location.hash !== '') {
+        window.location.hash = '#dashboard';
+        // Usar setTimeout para garantir que a navegação seja concluída
+        setTimeout(() => {
+            performFilterByStatus(status);
+        }, 500);
+    } else {
+        performFilterByStatus(status);
+    }
+};
+
+// Função real que realiza a filtragem
+function performFilterByStatus(status) {
+    console.log("Executando filtro para status:", status);
+    
+    if (!window.tasks) {
+        console.error("Objeto 'tasks' não encontrado!");
+        return;
+    }
+    
+    // Contador para saber quantas tarefas foram filtradas
+    let visibleTasksCount = 0;
+    let totalTasksCount = 0;
+    
+    Object.keys(window.tasks).forEach(category => {
+        const taskList = document.querySelector(`#${category} .task-list`);
+        if (!taskList) {
+            console.log(`Lista de tarefas não encontrada para categoria: ${category}`);
+            return;
+        }
+        
+        const taskItems = taskList.querySelectorAll('.task-item');
+        console.log(`Encontradas ${taskItems.length} tarefas na categoria ${category}`);
+        totalTasksCount += taskItems.length;
+        
+        taskItems.forEach(item => {
+            if (status === 'all') {
+                item.style.display = '';
+                visibleTasksCount++;
+            } else {
+                const isMatching = item.classList.contains(`status-${status}`);
+                item.style.display = isMatching ? '' : 'none';
+                
+                if (isMatching) {
+                    visibleTasksCount++;
+                }
+            }
+        });
+        
+        // Verificar se a lista ficou vazia após o filtro
+        const visibleItems = Array.from(taskItems).filter(item => item.style.display !== 'none');
+        if (visibleItems.length === 0) {
+            // Se não houver itens visíveis, mostrar uma mensagem
+            const emptyMessage = document.createElement('div');
+            emptyMessage.className = 'empty-message filtered-empty';
+            emptyMessage.innerHTML = `
+                <i class="fas fa-filter"></i>
+                <p>Nenhuma tarefa com status "${getStatusText(status)}" nesta categoria</p>
+            `;
+            
+            // Remover mensagens anteriores
+            const oldMessage = taskList.querySelector('.filtered-empty');
+            if (oldMessage) oldMessage.remove();
+            
+            taskList.appendChild(emptyMessage);
+        } else {
+            // Remover mensagens de filtro vazio se existirem
+            const oldMessage = taskList.querySelector('.filtered-empty');
+            if (oldMessage) oldMessage.remove();
+        }
+    });
+    
+    console.log(`Filtro aplicado: ${visibleTasksCount} de ${totalTasksCount} tarefas visíveis`);
+    
+    // Atualizar visualmente qual filtro está selecionado
+    const radioButton = document.querySelector(`.status-option input[value="${status}"]`);
+    if (radioButton) {
+        radioButton.checked = true;
+    }
+    
+    // Mostrar notificação sobre a filtragem
+    const statusTexts = {
+        'all': 'Todas as tarefas',
+        'pending': 'Tarefas em andamento',
+        'completed': 'Tarefas concluídas',
+        'finished': 'Tarefas finalizadas', 
+        'late': 'Tarefas atrasadas'
+    };
+    
+    if (typeof showSuccessNotification === 'function') {
+        showSuccessNotification(`Filtrando: ${statusTexts[status] || status} (${visibleTasksCount} tarefas)`);
+    }
+}
+
 // Carregar tarefas do Supabase quando a página for carregada
 document.addEventListener('DOMContentLoaded', async () => {
     // Mostrar estado de carregamento
@@ -1140,6 +1239,9 @@ function setupNavigation() {
             }
         } else {
             if (dashboardView) dashboardView.style.display = 'block';
+            
+            // Configurar os badges de status no dashboard
+            setTimeout(setupStatusBadges, 100);
         }
     }
     
@@ -1162,4 +1264,48 @@ function setupNavigation() {
     
     // Adicionar um listener para o evento hashchange
     window.addEventListener('hashchange', checkActivePage);
-} 
+}
+
+// Função para configurar os badges de status
+function setupStatusBadges() {
+    console.log("Configurando badges de status");
+    
+    // Remover listeners antigos para evitar duplicação
+    document.querySelectorAll('.status-badge').forEach(badge => {
+        const clonedBadge = badge.cloneNode(true);
+        badge.parentNode.replaceChild(clonedBadge, badge);
+    });
+    
+    // Adicionar novos listeners
+    document.querySelectorAll('.status-badge').forEach(badge => {
+        badge.addEventListener('click', (e) => {
+            const statusOption = e.target.closest('.status-option');
+            if (!statusOption) {
+                console.log("Não encontrou status-option");
+                return;
+            }
+            
+            const radioInput = statusOption.querySelector('input[type="radio"]');
+            if (!radioInput) {
+                console.log("Não encontrou input radio");
+                return;
+            }
+            
+            const status = radioInput.value;
+            console.log("Badge clicado:", status);
+            
+            // Marcar o radio como selecionado
+            radioInput.checked = true;
+            
+            // Filtrar as tarefas
+            filterTasksByStatus(status);
+        });
+    });
+    
+    console.log("Badges de status configurados");
+}
+
+// Configurar badges de status quando o DOM estiver carregado
+document.addEventListener('DOMContentLoaded', () => {
+    setTimeout(setupStatusBadges, 500);
+}); 

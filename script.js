@@ -24,8 +24,8 @@ document.body.classList.add(localStorage.getItem('theme') || 'light');
 const now = new Date();
 const nowString = now.toISOString().slice(0, 16);
 
-// Estado global das tarefas - será preenchido pelo Supabase
-let tasks = {
+// Estado global das tarefas - será preenchido pelo Supabase ou localStorage
+window.tasks = {
     day: [],
     week: [],
     month: [],
@@ -145,28 +145,47 @@ document.addEventListener('DOMContentLoaded', async () => {
         
         if (!isConnected) {
             // Se não conseguir conectar ao Supabase, usar o localStorage como fallback
-            tasks = JSON.parse(localStorage.getItem('tasks')) || {
-                day: [],
-                week: [],
-                month: [],
-                year: []
-            };
+            const storedTasks = localStorage.getItem('tasks');
+            if (storedTasks) {
+                window.tasks = JSON.parse(storedTasks);
+                console.log('Tarefas carregadas do localStorage:', window.tasks);
+            } else {
+                console.warn('Nenhuma tarefa encontrada no localStorage');
+                window.tasks = {
+                    day: [],
+                    week: [],
+                    month: [],
+                    year: []
+                };
+            }
             
             showErrorNotification('Não foi possível conectar ao Supabase. Usando armazenamento local.');
         } else {
             // Buscar tarefas do Supabase
-            tasks = await fetchTasks();
+            const fetchedTasks = await fetchTasks();
+            window.tasks = fetchedTasks;
+            
+            // Guardar uma cópia no localStorage para garantir
+            localStorage.setItem('tasks', JSON.stringify(window.tasks));
+            console.log('Tarefas carregadas do Supabase e salvas no localStorage:', window.tasks);
         }
     } catch (error) {
         console.error('Erro ao inicializar:', error);
         
         // Fallback para localStorage em caso de erro
-        tasks = JSON.parse(localStorage.getItem('tasks')) || {
-            day: [],
-            week: [],
-            month: [],
-            year: []
-        };
+        const storedTasks = localStorage.getItem('tasks');
+        if (storedTasks) {
+            window.tasks = JSON.parse(storedTasks);
+            console.log('Tarefas carregadas do localStorage (após erro):', window.tasks);
+        } else {
+            console.warn('Nenhuma tarefa encontrada no localStorage após erro');
+            window.tasks = {
+                day: [],
+                week: [],
+                month: [],
+                year: []
+            };
+        }
         
         showErrorNotification('Erro ao carregar tarefas. Usando armazenamento local.');
     } finally {
@@ -385,24 +404,44 @@ function getStatusText(status) {
 
 // Função atualizada para salvar tarefas no Supabase E localStorage como fallback
 async function saveTasks() {
-    // Sempre salvar no localStorage como fallback
-    localStorage.setItem('tasks', JSON.stringify(tasks));
-    
-    // Não precisa fazer nada no Supabase aqui, pois cada tarefa é salva individualmente
-    // quando é criada, atualizada ou excluída
-    
-    updateTaskCounts();
-    
-    // Atualizar a página de análises, se estiver inicializada
-    if (typeof updateAnalytics === 'function') {
-        updateAnalytics();
+    try {
+        // Verificar se as tarefas estão inicializadas
+        if (!window.tasks) {
+            console.error('Erro: window.tasks não está inicializado');
+            return false;
+        }
+        
+        // Sempre salvar no localStorage como fallback
+        localStorage.setItem('tasks', JSON.stringify(window.tasks));
+        console.log('Tarefas salvas no localStorage');
+        
+        // Atualizar contadores visuais
+        updateTaskCounts();
+        
+        // Atualizar a página de análises, se estiver inicializada
+        if (typeof updateAnalytics === 'function') {
+            console.log('Atualizando análises após salvar tarefas');
+            updateAnalytics();
+        }
+        
+        return true;
+    } catch (error) {
+        console.error('Erro ao salvar tarefas:', error);
+        showErrorNotification('Erro ao salvar tarefas');
+        return false;
     }
 }
 
 // Função para atualizar contadores de tarefas
 function updateTaskCounts() {
-    Object.keys(tasks).forEach(category => {
-        const count = tasks[category].length;
+    // Verificar se window.tasks está inicializado
+    if (!window.tasks) {
+        console.error('window.tasks não está inicializado');
+        return;
+    }
+    
+    Object.keys(window.tasks).forEach(category => {
+        const count = window.tasks[category].length;
         const countElement = document.querySelector(`#${category} .task-count`);
         if (countElement) {
             countElement.textContent = count;
@@ -589,11 +628,45 @@ function createTaskElement(task) {
 
 // Função para renderizar tarefas
 function renderTasks() {
-    Object.keys(tasks).forEach(category => {
+    // Verificar se window.tasks está inicializado
+    if (!window.tasks) {
+        console.error('window.tasks não está inicializado ao renderizar tarefas');
+        
+        // Tentar restaurar do localStorage
+        const storedTasks = localStorage.getItem('tasks');
+        if (storedTasks) {
+            try {
+                window.tasks = JSON.parse(storedTasks);
+                console.log('Tarefas restauradas do localStorage durante renderização');
+            } catch (e) {
+                console.error('Erro ao parsear tarefas do localStorage:', e);
+                window.tasks = {
+                    day: [],
+                    week: [],
+                    month: [],
+                    year: []
+                };
+            }
+        } else {
+            window.tasks = {
+                day: [],
+                week: [],
+                month: [],
+                year: []
+            };
+        }
+    }
+    
+    Object.keys(window.tasks).forEach(category => {
         const taskList = document.querySelector(`#${category} .task-list`);
+        if (!taskList) {
+            console.warn(`Lista de tarefas não encontrada para categoria: ${category}`);
+            return;
+        }
+        
         taskList.innerHTML = '';
         
-        if (tasks[category].length === 0) {
+        if (window.tasks[category].length === 0) {
             const emptyMessage = document.createElement('div');
             emptyMessage.className = 'empty-message';
             emptyMessage.innerHTML = `
@@ -605,7 +678,7 @@ function renderTasks() {
         }
         
         // Ordenar tarefas: primeiro as fixadas, depois as não fixadas
-        const sortedTasks = [...tasks[category]].sort((a, b) => {
+        const sortedTasks = [...window.tasks[category]].sort((a, b) => {
             if (a.pinned && !b.pinned) return -1;
             if (!a.pinned && b.pinned) return 1;
             return 0;
@@ -619,9 +692,9 @@ function renderTasks() {
                 const newStatus = e.target.value;
                 
                 // Atualizar no estado local
-                const originalIndex = tasks[category].findIndex(t => t.id === task.id);
+                const originalIndex = window.tasks[category].findIndex(t => t.id === task.id);
                 if (originalIndex !== -1) {
-                    tasks[category][originalIndex].status = newStatus;
+                    window.tasks[category][originalIndex].status = newStatus;
                     
                     // Atualizar classe do elemento da tarefa
                     taskElement.className = `task-item status-${newStatus}`;
@@ -647,10 +720,10 @@ function renderTasks() {
             
             // Evento para fixar/desafixar tarefa
             pinButton.addEventListener('click', async () => {
-                const originalIndex = tasks[category].findIndex(t => t.id === task.id);
+                const originalIndex = window.tasks[category].findIndex(t => t.id === task.id);
                 if (originalIndex !== -1) {
-                    const newPinnedState = !tasks[category][originalIndex].pinned;
-                    tasks[category][originalIndex].pinned = newPinnedState;
+                    const newPinnedState = !window.tasks[category][originalIndex].pinned;
+                    window.tasks[category][originalIndex].pinned = newPinnedState;
                     
                     // Salvar no localStorage e atualizar analytics
                     saveTasks();
@@ -675,10 +748,10 @@ function renderTasks() {
                 taskElement.style.transform = 'translateY(20px)';
                 
                 setTimeout(async () => {
-                    const originalIndex = tasks[category].findIndex(t => t.id === task.id);
+                    const originalIndex = window.tasks[category].findIndex(t => t.id === task.id);
                     if (originalIndex !== -1) {
                         // Remover do estado local
-                        tasks[category].splice(originalIndex, 1);
+                        window.tasks[category].splice(originalIndex, 1);
                         
                         // Salvar no localStorage e atualizar analytics
                         saveTasks();
@@ -1195,10 +1268,15 @@ function setupNavigation() {
     const dashboardView = document.getElementById('dashboard-view');
     const calendarView = document.getElementById('calendar-view');
     const analisesView = document.getElementById('analises-view');
+    let calendarInitialized = false; // Flag para controlar se o calendário já foi inicializado
     
     // Verificar qual página está ativa com base na URL hash
     function checkActivePage() {
         const hash = window.location.hash || '#dashboard';
+        const previousHash = window._previousHash || '';
+        window._previousHash = hash; // Armazenar hash atual para referência futura
+        
+        console.log(`Navegando de '${previousHash}' para '${hash}'`);
         
         // Remover a classe active de todos os itens de menu
         menuItems.forEach(item => {
@@ -1218,24 +1296,57 @@ function setupNavigation() {
         
         // Mostrar a view correspondente
         if (hash === '#calendario') {
-            if (calendarView) calendarView.style.display = 'block';
-            
-            // Inicializar o calendário se necessário
-            if (typeof initCalendar === 'function') {
-                initCalendar();
-                loadCalendarTasks();
+            if (calendarView) {
+                calendarView.style.display = 'block';
+                
+                // Inicializar o calendário se necessário
+                if (typeof initCalendar === 'function') {
+                    initCalendar();
+                    loadCalendarTasks();
+                }
             }
         } else if (hash === '#analises') {
-            if (analisesView) analisesView.style.display = 'block';
-            
-            // Inicializar os gráficos de análise se necessário
-            if (typeof initAnalytics === 'function') {
-                initAnalytics();
+            if (analisesView) {
+                analisesView.style.display = 'block';
                 
-                // Garantir que os dados dos gráficos estejam atualizados
-                if (typeof updateAnalytics === 'function') {
-                    updateAnalytics();
+                // Garantir que os dados estejam disponíveis antes de atualizar os gráficos
+                if (!window.tasks) {
+                    console.warn('window.tasks não inicializado ao entrar na página de análises. Recuperando do localStorage...');
+                    const storedTasks = localStorage.getItem('tasks');
+                    if (storedTasks) {
+                        try {
+                            window.tasks = JSON.parse(storedTasks);
+                            console.log('Tarefas recuperadas do localStorage para página de análises');
+                        } catch (e) {
+                            console.error('Erro ao parsear tarefas do localStorage:', e);
+                            window.tasks = {
+                                day: [],
+                                week: [],
+                                month: [],
+                                year: []
+                            };
+                        }
+                    } else {
+                        console.warn('Nenhuma tarefa encontrada no localStorage para página de análises');
+                        window.tasks = {
+                            day: [],
+                            week: [],
+                            month: [],
+                            year: []
+                        };
+                    }
                 }
+                
+                // Forçar uma atualização completa dos gráficos quando navega para a página de análises
+                setTimeout(() => {
+                    if (typeof updateAnalytics === 'function') {
+                        console.log('Atualizando gráficos após navegação para página de análises');
+                        updateAnalytics();
+                    } else if (typeof initAnalytics === 'function') {
+                        console.log('Inicializando gráficos após navegação para página de análises');
+                        initAnalytics();
+                    }
+                }, 100);
             }
         } else {
             if (dashboardView) dashboardView.style.display = 'block';
@@ -1305,7 +1416,268 @@ function setupStatusBadges() {
     console.log("Badges de status configurados");
 }
 
-// Configurar badges de status quando o DOM estiver carregado
+// Função para limpar elementos duplicados no calendário
+function cleanupCalendarDuplicates() {
+    // Executar esta função periodicamente para evitar duplicações
+    setInterval(() => {
+        // Verificar se estamos na página do calendário
+        if (window.location.hash === '#calendario') {
+            const calendarContainer = document.getElementById('calendar-container');
+            if (calendarContainer) {
+                // Remover controles de navegação duplicados (manter apenas o primeiro)
+                const controls = calendarContainer.querySelectorAll('.calendar-controls');
+                if (controls.length > 1) {
+                    for (let i = 1; i < controls.length; i++) {
+                        controls[i].remove();
+                    }
+                }
+                
+                // Remover grids de calendário duplicados (manter apenas o último, que é o mais atualizado)
+                const grids = calendarContainer.querySelectorAll('.calendar-grid');
+                if (grids.length > 1) {
+                    for (let i = 0; i < grids.length - 1; i++) {
+                        grids[i].remove();
+                    }
+                }
+                
+                // Remover títulos duplicados "Mês Ano" (manter apenas o primeiro)
+                const monthYears = calendarContainer.querySelectorAll('#calendar-month-year');
+                if (monthYears.length > 1) {
+                    for (let i = 1; i < monthYears.length; i++) {
+                        monthYears[i].remove();
+                    }
+                }
+            }
+        }
+    }, 500); // Verificar a cada meio segundo
+}
+
+// Iniciar a limpeza de duplicados quando o DOM estiver carregado
 document.addEventListener('DOMContentLoaded', () => {
     setTimeout(setupStatusBadges, 500);
-}); 
+    cleanupCalendarDuplicates(); // Iniciar verificação anti-duplicação
+});
+
+// Função para adicionar uma nova tarefa
+function addTask(e) {
+    e.preventDefault();
+    
+    try {
+        // Obter os dados do formulário
+        const form = document.getElementById('add-task-form');
+        const titleInput = document.getElementById('task-title');
+        const descriptionInput = document.getElementById('task-description');
+        const startDateInput = document.getElementById('task-start-date');
+        const endDateInput = document.getElementById('task-end-date');
+        const categoryInput = document.getElementById('task-category');
+        const priorityInput = document.getElementById('task-priority');
+        
+        // Validar os dados do formulário
+        if (!titleInput.value.trim()) {
+            showErrorNotification('Por favor, informe um título para a tarefa.');
+            return;
+        }
+        
+        // Verificar se as datas são válidas
+        // A data de início não pode ser maior que a data de término
+        if (startDateInput.value && endDateInput.value) {
+            const startDate = new Date(startDateInput.value);
+            const endDate = new Date(endDateInput.value);
+            
+            if (startDate > endDate) {
+                showErrorNotification('A data de início não pode ser maior que a data de término.');
+                return;
+            }
+        }
+        
+        // Gerar ID único para a tarefa
+        const taskId = 'task_' + Date.now();
+        
+        // Criar objeto da tarefa
+        const task = {
+            id: taskId,
+            title: titleInput.value.trim(),
+            description: descriptionInput.value.trim(),
+            startDate: startDateInput.value,
+            endDate: endDateInput.value,
+            category: categoryInput.value,
+            priority: priorityInput.value,
+            status: 'pending',
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+        };
+        
+        // Verificar se window.tasks está inicializado
+        if (!window.tasks) {
+            console.error('window.tasks não está inicializado');
+            window.tasks = {
+                day: [],
+                week: [],
+                month: [],
+                year: []
+            };
+        }
+        
+        // Adicionar a tarefa à categoria apropriada
+        window.tasks[task.category].push(task);
+        
+        // Salvar as tarefas no localStorage
+        saveTasks();
+        
+        // Atualizar a lista de tarefas
+        renderTasks();
+        
+        // Fechar o modal
+        const addTaskModal = document.getElementById('add-task-modal');
+        if (addTaskModal) {
+            addTaskModal.style.display = 'none';
+        }
+        
+        // Limpar o formulário
+        form.reset();
+        
+        // Exibir notificação de sucesso
+        showSuccessNotification('Tarefa adicionada com sucesso!');
+        
+        // Atualizar os gráficos
+        if (typeof updateAnalytics === 'function') {
+            console.log('Atualizando análises após adicionar tarefa');
+            updateAnalytics();
+        }
+        
+        // Atualizar o calendário
+        if (typeof loadCalendarTasks === 'function') {
+            console.log('Atualizando calendário após adicionar tarefa');
+            loadCalendarTasks();
+        }
+    } catch (error) {
+        console.error('Erro ao adicionar tarefa:', error);
+        showErrorNotification('Ocorreu um erro ao adicionar a tarefa. Por favor, tente novamente.');
+    }
+}
+
+// Função para atualizar o status de uma tarefa
+function updateTaskStatus(taskId, newStatus) {
+    try {
+        // Verificar se window.tasks está inicializado
+        if (!window.tasks) {
+            console.error('window.tasks não está inicializado');
+            return false;
+        }
+        
+        // Buscar a tarefa em todas as categorias
+        let taskFound = false;
+        
+        Object.keys(window.tasks).forEach(category => {
+            const taskIndex = window.tasks[category].findIndex(task => task.id === taskId);
+            
+            if (taskIndex !== -1) {
+                const task = window.tasks[category][taskIndex];
+                task.status = newStatus;
+                task.updatedAt = new Date().toISOString();
+                
+                // Se a tarefa foi concluída, registrar a data de conclusão
+                if (newStatus === 'completed' || newStatus === 'finished') {
+                    task.completedAt = new Date().toISOString();
+                }
+                
+                // Atualizar a tarefa na lista
+                window.tasks[category][taskIndex] = task;
+                taskFound = true;
+            }
+        });
+        
+        if (taskFound) {
+            // Salvar as tarefas no localStorage
+            saveTasks();
+            
+            // Atualizar a lista de tarefas
+            renderTasks();
+            
+            // Exibir notificação de sucesso
+            showSuccessNotification(`Status da tarefa atualizado para ${getStatusText(newStatus)}!`);
+            
+            // Atualizar os gráficos
+            if (typeof updateAnalytics === 'function') {
+                console.log('Atualizando análises após mudança de status');
+                updateAnalytics();
+            }
+            
+            // Atualizar o calendário
+            if (typeof loadCalendarTasks === 'function') {
+                console.log('Atualizando calendário após mudança de status');
+                loadCalendarTasks();
+            }
+            
+            return true;
+        } else {
+            console.error('Tarefa não encontrada:', taskId);
+            return false;
+        }
+    } catch (error) {
+        console.error('Erro ao atualizar status da tarefa:', error);
+        showErrorNotification('Ocorreu um erro ao atualizar o status da tarefa.');
+        return false;
+    }
+}
+
+// Função para deletar uma tarefa
+function deleteTask(taskId) {
+    try {
+        // Confirmar exclusão
+        if (!confirm('Tem certeza que deseja excluir esta tarefa?')) {
+            return;
+        }
+        
+        // Verificar se window.tasks está inicializado
+        if (!window.tasks) {
+            console.error('window.tasks não está inicializado');
+            return false;
+        }
+        
+        // Buscar a tarefa em todas as categorias
+        let taskFound = false;
+        
+        Object.keys(window.tasks).forEach(category => {
+            const taskIndex = window.tasks[category].findIndex(task => task.id === taskId);
+            
+            if (taskIndex !== -1) {
+                // Remover a tarefa da lista
+                window.tasks[category].splice(taskIndex, 1);
+                taskFound = true;
+            }
+        });
+        
+        if (taskFound) {
+            // Salvar as tarefas no localStorage
+            saveTasks();
+            
+            // Atualizar a lista de tarefas
+            renderTasks();
+            
+            // Exibir notificação de sucesso
+            showSuccessNotification('Tarefa excluída com sucesso!');
+            
+            // Atualizar os gráficos
+            if (typeof updateAnalytics === 'function') {
+                console.log('Atualizando análises após excluir tarefa');
+                updateAnalytics();
+            }
+            
+            // Atualizar o calendário
+            if (typeof loadCalendarTasks === 'function') {
+                console.log('Atualizando calendário após excluir tarefa');
+                loadCalendarTasks();
+            }
+            
+            return true;
+        } else {
+            console.error('Tarefa não encontrada:', taskId);
+            return false;
+        }
+    } catch (error) {
+        console.error('Erro ao excluir tarefa:', error);
+        showErrorNotification('Ocorreu um erro ao excluir a tarefa.');
+        return false;
+    }
+} 

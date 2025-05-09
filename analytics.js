@@ -2,6 +2,59 @@
 let analyticsInitialized = false;
 let chartsInstances = {};
 
+// Função para gerar dados mockados para inicialização
+function generateMockData() {
+    return {
+        totalTasks: 5,
+        completedPercentage: 20,
+        latePercentage: 20,
+        averageHours: 2.5,
+        distribution: {
+            pending: 2,
+            completed: 1,
+            finished: 1,
+            late: 1
+        },
+        evolution: {
+            '01/05/2023': 0,
+            '02/05/2023': 1,
+            '03/05/2023': 0,
+            '04/05/2023': 1,
+            '05/05/2023': 2,
+            '06/05/2023': 0,
+            '07/05/2023': 1
+        },
+        byDay: [1, 2, 1, 0, 1, 0, 0],
+        byHour: [
+            {
+                label: 'Segunda',
+                data: [0, 1, 0, 0],
+                backgroundColor: 'rgba(124, 58, 237, 0.7)'
+            },
+            {
+                label: 'Terça',
+                data: [0, 1, 1, 0],
+                backgroundColor: 'rgba(114, 53, 222, 0.7)'
+            },
+            {
+                label: 'Quarta',
+                data: [0, 0, 1, 0],
+                backgroundColor: 'rgba(104, 48, 207, 0.7)'
+            },
+            {
+                label: 'Quinta',
+                data: [0, 0, 0, 0],
+                backgroundColor: 'rgba(94, 43, 192, 0.7)'
+            },
+            {
+                label: 'Sexta',
+                data: [0, 1, 0, 0],
+                backgroundColor: 'rgba(84, 38, 177, 0.7)'
+            }
+        ]
+    };
+}
+
 // Função para inicializar os gráficos e análises
 function initAnalytics() {
     // Só inicializa uma vez para evitar duplicação
@@ -9,14 +62,21 @@ function initAnalytics() {
     
     console.log('Inicializando Análises...');
     
-    // Atualizar os valores de resumo
-    updateSummaryValues();
+    // Renderizar inicialmente com dados mockados para garantir visualização imediata
+    const mockData = generateMockData();
+    renderInitialCharts(mockData);
     
-    // Inicializar gráficos
-    initTasksDistributionChart();
-    initTasksEvolutionChart();
-    initTasksByDayChart();
-    initTasksByHourChart();
+    // Atualizar com dados reais após um breve tempo
+    setTimeout(() => {
+        // Atualizar os valores de resumo
+        updateSummaryValues();
+        initTasksDistributionChart();
+        initTasksEvolutionChart();
+        initTasksByDayChart();
+        initTasksByHourChart();
+        
+        console.log('Gráficos atualizados com dados reais');
+    }, 500);
     
     // Configurar botões Ver Detalhes
     setupDetailButtons();
@@ -29,13 +89,44 @@ function initAnalytics() {
 
 // Função para obter todas as tarefas em um único array
 function getAllTasks() {
-    // Combina todas as tarefas das diferentes categorias
-    return [
-        ...tasks.day,
-        ...tasks.week,
-        ...tasks.month,
-        ...tasks.year
-    ];
+    try {
+        console.log('Obtendo todas as tarefas para análises');
+        
+        // Se window.tasks não estiver disponível, tentar recuperar do localStorage
+        if (!window.tasks) {
+            console.warn('window.tasks não encontrado. Tentando recuperar do localStorage...');
+            const storedTasks = localStorage.getItem('tasks');
+            if (storedTasks) {
+                try {
+                    window.tasks = JSON.parse(storedTasks);
+                    console.log('Tarefas recuperadas do localStorage');
+                } catch (e) {
+                    console.error('Erro ao parsear tarefas do localStorage:', e);
+                    return [];
+                }
+            } else {
+                console.error('Nenhum dado encontrado no localStorage');
+                return [];
+            }
+        }
+        
+        // Garantir que todas as categorias existam para evitar erros
+        if (!window.tasks.day) window.tasks.day = [];
+        if (!window.tasks.week) window.tasks.week = [];
+        if (!window.tasks.month) window.tasks.month = [];
+        if (!window.tasks.year) window.tasks.year = [];
+        
+        // Concatenar todas as tarefas em um único array
+        return [
+            ...window.tasks.day,
+            ...window.tasks.week,
+            ...window.tasks.month,
+            ...window.tasks.year
+        ];
+    } catch (error) {
+        console.error('Erro ao obter todas as tarefas:', error);
+        return [];
+    }
 }
 
 // Função para atualizar os valores resumidos com dados reais
@@ -189,38 +280,54 @@ function initTasksDistributionChart() {
 }
 
 // Função para agrupar tarefas por data
-function groupTasksByDate(tasks, daysAgo = 7) {
-    const result = {};
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    
-    // Inicializar todos os dias dos últimos 'daysAgo' dias com zero
-    for (let i = daysAgo - 1; i >= 0; i--) {
-        const date = new Date(today);
-        date.setDate(date.getDate() - i);
-        const dateStr = date.toLocaleDateString('pt-BR');
-        result[dateStr] = 0;
-    }
-    
-    // Contar tarefas concluídas/finalizadas por dia
-    tasks.forEach(task => {
-        if (task.status === 'completed' || task.status === 'finished') {
-            // Usar a data de criação ou data final
-            const taskDate = new Date(task.endDate);
-            taskDate.setHours(0, 0, 0, 0);
-            
-            // Verificar se está dentro do período
-            const diffTime = today - taskDate;
-            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-            
-            if (diffDays >= 0 && diffDays < daysAgo) {
-                const dateStr = taskDate.toLocaleDateString('pt-BR');
-                result[dateStr] = (result[dateStr] || 0) + 1;
-            }
+function groupTasksByDate(allTasks, daysAgo = 7) {
+    try {
+        const result = {};
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
+        // Inicializar todos os dias dos últimos 'daysAgo' dias com zero
+        for (let i = daysAgo - 1; i >= 0; i--) {
+            const date = new Date(today);
+            date.setDate(date.getDate() - i);
+            const dateStr = date.toLocaleDateString('pt-BR');
+            result[dateStr] = 0;
         }
-    });
-    
-    return result;
+        
+        console.log(`Agrupando tarefas por data (últimos ${daysAgo} dias)`);
+        
+        // Contar tarefas concluídas/finalizadas por dia
+        allTasks.forEach(task => {
+            if (task.status === 'completed' || task.status === 'finished') {
+                // Tentar usar a data em que foi marcada como concluída (para análise de produtividade)
+                // Se não estiver disponível, usar a data de término planejada
+                const taskDate = new Date(task.completedAt || task.endDate);
+                taskDate.setHours(0, 0, 0, 0);
+                
+                // Verificar se está dentro do período
+                const diffTime = today - taskDate;
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                
+                if (diffDays >= 0 && diffDays < daysAgo) {
+                    const dateStr = taskDate.toLocaleDateString('pt-BR');
+                    result[dateStr] = (result[dateStr] || 0) + 1;
+                }
+            }
+        });
+        
+        return result;
+    } catch (error) {
+        console.error('Erro ao agrupar tarefas por data:', error);
+        // Retornar um objeto com os últimos 7 dias, mas com contagem zero
+        const fallbackResult = {};
+        const today = new Date();
+        for (let i = 6; i >= 0; i--) {
+            const date = new Date(today);
+            date.setDate(date.getDate() - i);
+            fallbackResult[date.toLocaleDateString('pt-BR')] = 0;
+        }
+        return fallbackResult;
+    }
 }
 
 // Função para inicializar o gráfico de linha com a evolução das tarefas concluídas
@@ -288,21 +395,24 @@ function initTasksEvolutionChart() {
 }
 
 // Função para agrupar tarefas por dia da semana
-function groupTasksByDayOfWeek(tasks) {
-    const daysOfWeek = {
-        'Seg': 0, 'Ter': 0, 'Qua': 0, 'Qui': 0, 'Sex': 0, 'Sáb': 0, 'Dom': 0
-    };
-    
-    const dayNames = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
-    
-    tasks.forEach(task => {
-        const taskDate = new Date(task.startDate);
-        const dayOfWeek = dayNames[taskDate.getDay()];
-        daysOfWeek[dayOfWeek] = (daysOfWeek[dayOfWeek] || 0) + 1;
-    });
-    
-    // Reordenar os dias começando com segunda-feira
-    return ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'].map(day => daysOfWeek[day]);
+function groupTasksByDayOfWeek(allTasks) {
+    try {
+        const daysOfWeek = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+        const result = [0, 0, 0, 0, 0, 0, 0]; // Inicializa com zero para cada dia
+        
+        // Agrupar tarefas por dia da semana (usando data de conclusão ou data final)
+        allTasks.forEach(task => {
+            const taskDate = new Date(task.completedAt || task.endDate);
+            const dayOfWeek = taskDate.getDay();
+            result[dayOfWeek]++;
+        });
+        
+        return result;
+    } catch (error) {
+        console.error('Erro ao agrupar tarefas por dia da semana:', error);
+        // Retornar array com zeros para evitar erro no gráfico
+        return [0, 0, 0, 0, 0, 0, 0];
+    }
 }
 
 // Função para inicializar o gráfico de barras com tarefas por dia da semana
@@ -322,7 +432,7 @@ function initTasksByDayChart() {
     chartsInstances.byDay = new Chart(ctx, {
         type: 'bar',
         data: {
-            labels: ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'],
+            labels: ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'],
             datasets: [{
                 label: 'Tarefas',
                 data: data,
@@ -374,58 +484,62 @@ function initTasksByDayChart() {
     });
 }
 
-// Função para agrupar tarefas por período do dia e dia da semana
-function groupTasksByHourAndDay(tasks) {
-    const periods = ['0h-6h', '6h-12h', '12h-18h', '18h-24h'];
-    const days = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta'];
-    
-    // Inicializar resultado
-    const result = {};
-    days.forEach(day => {
-        result[day] = [0, 0, 0, 0]; // Um valor para cada período
-    });
-    
-    // Mapear número do dia da semana para nome
-    const dayMap = {
-        1: 'Segunda',
-        2: 'Terça',
-        3: 'Quarta',
-        4: 'Quinta',
-        5: 'Sexta'
-    };
-    
-    tasks.forEach(task => {
-        const taskDate = new Date(task.startDate);
-        const dayOfWeek = taskDate.getDay(); // 0 = Domingo, 1 = Segunda, ...
-        const hour = taskDate.getHours();
+// Função para agrupar tarefas por hora do dia e dia da semana
+function groupTasksByHourAndDay(allTasks) {
+    try {
+        // Definir dias e faixas de horários
+        const daysOfWeek = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta'];
+        const timeRanges = ['0h-6h', '6h-12h', '12h-18h', '18h-24h'];
         
-        // Só processar dias úteis
-        if (dayOfWeek >= 1 && dayOfWeek <= 5) {
-            const dayName = dayMap[dayOfWeek];
+        // Inicializar objeto para armazenar dados por dia e hora
+        const result = [];
+        
+        // Criar dataset para cada dia da semana
+        for (let i = 0; i < daysOfWeek.length; i++) {
+            const day = daysOfWeek[i];
+            const dayIndex = i + 1; // Ajustar índice: 0 (domingo) para 1 (segunda)
             
-            // Determinar o período do dia
-            let periodIndex;
-            if (hour < 6) periodIndex = 0;
-            else if (hour < 12) periodIndex = 1;
-            else if (hour < 18) periodIndex = 2;
-            else periodIndex = 3;
+            // Preparar dados para este dia com as cores do tema
+            const backgroundColor = `rgba(${124 - i * 10}, ${58 - i * 5}, ${237 - i * 15}, 0.7)`;
             
-            // Incrementar contador
-            result[dayName][periodIndex]++;
+            // Inicializar contadores para cada faixa de horário
+            const hoursData = [0, 0, 0, 0]; // 0h-6h, 6h-12h, 12h-18h, 18h-24h
+            
+            // Contar tarefas para este dia e faixas de horário
+            allTasks.forEach(task => {
+                // Verificar se a tarefa tem data
+                if (!task.startDate) return;
+                
+                const taskDate = new Date(task.startDate);
+                // Verificar se o dia da semana coincide
+                if (taskDate.getDay() === dayIndex) {
+                    // Determinar faixa de horário
+                    const hour = taskDate.getHours();
+                    const rangeIndex = Math.floor(hour / 6);
+                    hoursData[rangeIndex]++;
+                }
+            });
+            
+            // Adicionar ao resultado
+            result.push({
+                label: day,
+                data: hoursData,
+                backgroundColor: backgroundColor
+            });
         }
-    });
-    
-    // Converter para o formato de datasets do Chart.js
-    return days.map((day, index) => {
-        return {
-            label: day,
-            data: result[day],
-            backgroundColor: `rgba(${124 - (index * 10)}, ${58 - (index * 5)}, ${237 - (index * 15)}, 0.7)`,
-            borderColor: `rgb(${124 - (index * 10)}, ${58 - (index * 5)}, ${237 - (index * 15)})`,
-            borderWidth: 1,
-            borderRadius: 4
-        };
-    });
+        
+        return result;
+    } catch (error) {
+        console.error('Erro ao agrupar tarefas por hora e dia:', error);
+        // Retornar estrutura vazia mas válida em caso de erro
+        return [
+            { label: 'Segunda', data: [0, 0, 0, 0], backgroundColor: 'rgba(124, 58, 237, 0.7)' },
+            { label: 'Terça', data: [0, 0, 0, 0], backgroundColor: 'rgba(114, 53, 222, 0.7)' },
+            { label: 'Quarta', data: [0, 0, 0, 0], backgroundColor: 'rgba(104, 48, 207, 0.7)' },
+            { label: 'Quinta', data: [0, 0, 0, 0], backgroundColor: 'rgba(94, 43, 192, 0.7)' },
+            { label: 'Sexta', data: [0, 0, 0, 0], backgroundColor: 'rgba(84, 38, 177, 0.7)' }
+        ];
+    }
 }
 
 // Função para inicializar o gráfico de barras horizontais com distribuição por horário
@@ -521,10 +635,10 @@ function setupExportButton() {
                     emAndamento: allTasks.filter(t => t.status === 'pending').length
                 },
                 tarefasPorCategoria: {
-                    dia: tasks.day.length,
-                    semana: tasks.week.length,
-                    mes: tasks.month.length,
-                    ano: tasks.year.length
+                    dia: window.tasks.day.length,
+                    semana: window.tasks.week.length,
+                    mes: window.tasks.month.length,
+                    ano: window.tasks.year.length
                 },
                 tarefasPorStatus: {
                     emAndamento: allTasks.filter(t => t.status === 'pending').length,
@@ -561,14 +675,26 @@ function setupExportButton() {
     }
 }
 
-// Função para atualizar os gráficos quando os dados mudarem
+// Função para atualizar os gráficos com dados mais recentes
 function updateAnalytics() {
-    if (analyticsInitialized) {
+    try {
+        console.log('Atualizando análises com os dados mais recentes das tarefas');
+        
+        // Força a limpeza de cache de dados para cálculos mais recentes
+        const allTasks = getAllTasks();
+        
+        // Inicializa ou atualiza os gráficos com os dados mais recentes
         updateSummaryValues();
         initTasksDistributionChart();
         initTasksEvolutionChart();
         initTasksByDayChart();
         initTasksByHourChart();
+        
+        console.log('Análises atualizadas com sucesso');
+        return true;
+    } catch (error) {
+        console.error('Erro ao atualizar análises:', error);
+        return false;
     }
 }
 
@@ -582,4 +708,206 @@ window.addEventListener('resize', function() {
             }
         });
     }
-}); 
+});
+
+// Adicionar evento para inicializar análises quando a página for carregada
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('Documento carregado, verificando a página de análises');
+    
+    // Verificar se estamos na página de análises
+    if (window.location.hash === '#analises') {
+        console.log('Página de análises detectada, inicializando gráficos');
+        initAnalytics();
+    }
+    
+    // Adicionar ouvinte para mudanças de hash (navegação)
+    window.addEventListener('hashchange', function() {
+        if (window.location.hash === '#analises') {
+            console.log('Navegou para a página de análises, atualizando gráficos');
+            updateAnalytics();
+        }
+    });
+});
+
+// Função para renderizar gráficos iniciais com dados mockados
+function renderInitialCharts(mockData) {
+    console.log('Renderizando gráficos iniciais com dados mockados');
+    
+    // Atualizar os elementos de resumo
+    document.getElementById('total-tasks').textContent = mockData.totalTasks;
+    document.getElementById('completed-tasks').textContent = `${mockData.completedPercentage}%`;
+    document.getElementById('late-tasks').textContent = `${mockData.latePercentage}%`;
+    document.getElementById('average-time').textContent = `${mockData.averageHours}h`;
+    
+    // Renderizar gráfico de distribuição
+    const ctxDistribution = document.getElementById('tasks-distribution-chart');
+    if (ctxDistribution && ctxDistribution.getContext) {
+        chartsInstances.distribution = new Chart(ctxDistribution.getContext('2d'), {
+            type: 'doughnut',
+            data: {
+                labels: ['Em Andamento', 'Concluídas', 'Finalizadas', 'Atrasadas'],
+                datasets: [{
+                    data: [40, 20, 20, 20],
+                    backgroundColor: [
+                        '#eab308', // amarelo (pendente)
+                        '#22c55e', // verde (concluído)
+                        '#3b82f6', // azul (finalizado)
+                        '#ef4444'  // vermelho (atrasado)
+                    ],
+                    borderColor: '#ffffff',
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: '70%',
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            usePointStyle: true,
+                            padding: 15
+                        }
+                    }
+                }
+            }
+        });
+    }
+    
+    // Renderizar gráfico de evolução
+    const ctxEvolution = document.getElementById('tasks-evolution-chart');
+    if (ctxEvolution && ctxEvolution.getContext) {
+        chartsInstances.evolution = new Chart(ctxEvolution.getContext('2d'), {
+            type: 'line',
+            data: {
+                labels: Object.keys(mockData.evolution),
+                datasets: [{
+                    label: 'Tarefas Concluídas',
+                    data: Object.values(mockData.evolution),
+                    borderColor: '#7c3aed',
+                    backgroundColor: 'rgba(124, 58, 237, 0.1)',
+                    borderWidth: 2,
+                    pointBackgroundColor: '#7c3aed',
+                    pointRadius: 4,
+                    fill: true,
+                    tension: 0.3
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: {
+                            display: false
+                        }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            precision: 0,
+                            stepSize: 1
+                        }
+                    }
+                }
+            }
+        });
+    }
+    
+    // Renderizar gráfico por dia da semana
+    const ctxByDay = document.getElementById('tasks-by-day-chart');
+    if (ctxByDay && ctxByDay.getContext) {
+        chartsInstances.byDay = new Chart(ctxByDay.getContext('2d'), {
+            type: 'bar',
+            data: {
+                labels: ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'],
+                datasets: [{
+                    label: 'Tarefas',
+                    data: mockData.byDay,
+                    backgroundColor: [
+                        'rgba(124, 58, 237, 0.7)',
+                        'rgba(124, 58, 237, 0.7)',
+                        'rgba(124, 58, 237, 0.7)',
+                        'rgba(124, 58, 237, 0.7)',
+                        'rgba(124, 58, 237, 0.7)',
+                        'rgba(59, 130, 246, 0.7)',
+                        'rgba(59, 130, 246, 0.7)'
+                    ],
+                    borderWidth: 1,
+                    borderRadius: 6
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: {
+                            display: false
+                        }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            precision: 0,
+                            stepSize: 1
+                        }
+                    }
+                }
+            }
+        });
+    }
+    
+    // Renderizar gráfico por hora
+    const ctxByHour = document.getElementById('tasks-by-hour-chart');
+    if (ctxByHour && ctxByHour.getContext) {
+        chartsInstances.byHour = new Chart(ctxByHour.getContext('2d'), {
+            type: 'bar',
+            data: {
+                labels: ['0h-6h', '6h-12h', '12h-18h', '18h-24h'],
+                datasets: mockData.byHour
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            usePointStyle: true,
+                            padding: 15
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        beginAtZero: true,
+                        stacked: true,
+                        ticks: {
+                            precision: 0,
+                            stepSize: 1
+                        }
+                    },
+                    y: {
+                        stacked: true,
+                        grid: {
+                            display: false
+                        }
+                    }
+                }
+            }
+        });
+    }
+} 

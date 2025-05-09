@@ -2,6 +2,7 @@
 let currentMonth = new Date().getMonth();
 let currentYear = new Date().getFullYear();
 let calendarTasks = {};
+let isCalendarInitialized = false;
 
 // Função para inicializar o calendário
 function initCalendar() {
@@ -9,9 +10,23 @@ function initCalendar() {
     const calendarContainer = document.getElementById('calendar-container');
     if (!calendarContainer) return;
     
+    // Verificar se já existem elementos no calendário para evitar duplicação
+    const existingControls = calendarContainer.querySelector('.calendar-controls');
+    const existingGrid = calendarContainer.querySelector('.calendar-grid');
+    
+    // Se já estiver inicializado e existirem controles, apenas renderizar o calendário
+    if (isCalendarInitialized && existingControls && existingGrid) {
+        renderCalendar();
+        return;
+    }
+    
+    // Caso contrário, limpar o container e reconstruir o calendário do zero
+    calendarContainer.innerHTML = '';
+    
     // Botões de navegação do calendário
     const calendarControls = document.createElement('div');
     calendarControls.className = 'calendar-controls';
+    calendarControls.id = 'calendar-controls';
     calendarControls.innerHTML = `
         <div class="calendar-nav-group">
             <button id="prev-month" class="calendar-nav-btn">
@@ -52,7 +67,10 @@ function initCalendar() {
         renderCalendar();
     });
     
-    // Renderizar o calendário inicial
+    // Marcar como inicializado
+    isCalendarInitialized = true;
+    
+    // Renderizar o calendário
     renderCalendar();
 }
 
@@ -124,15 +142,24 @@ function renderCalendar() {
     tooltip.style.display = 'none';
     document.body.appendChild(tooltip);
     
+    // Obter a data atual para comparação
+    const today = new Date();
+    const isCurrentMonth = currentMonth === today.getMonth() && currentYear === today.getFullYear();
+    
     // Adicionar células para cada dia do mês
     for (let day = 1; day <= lastDay.getDate(); day++) {
         const dateCell = document.createElement('div');
         dateCell.className = 'calendar-cell';
         
         // Verificar se é hoje
-        const today = new Date();
-        if (day === today.getDate() && currentMonth === today.getMonth() && currentYear === today.getFullYear()) {
+        const isToday = day === today.getDate() && currentMonth === today.getMonth() && currentYear === today.getFullYear();
+        const isPast = new Date(currentYear, currentMonth, day) < new Date(today.getFullYear(), today.getMonth(), today.getDate());
+        
+        // Adicionar classes com base no dia
+        if (isToday) {
             dateCell.classList.add('calendar-today');
+        } else if (isPast && isCurrentMonth) {
+            dateCell.classList.add('calendar-past');
         }
         
         // Formato da data: YYYY-MM-DD
@@ -148,7 +175,7 @@ function renderCalendar() {
         dayNumber.textContent = day;
 
         // Adicionar indicador de "Hoje" junto ao número do dia
-        if (day === today.getDate() && currentMonth === today.getMonth() && currentYear === today.getFullYear()) {
+        if (isToday) {
             const todayIndicator = document.createElement('span');
             todayIndicator.className = 'today-indicator';
             todayIndicator.textContent = 'Hoje';
@@ -158,10 +185,18 @@ function renderCalendar() {
         cellHeader.appendChild(dayNumber);
         
         // Adicionar indicador de tarefas se houver tarefas neste dia
-        if (calendarTasks[formattedDate] && calendarTasks[formattedDate].length > 0) {
-            const taskCount = calendarTasks[formattedDate].length;
+        const dayTasks = calendarTasks[formattedDate] || [];
+        if (dayTasks.length > 0) {
+            const taskCount = dayTasks.length;
             const taskIndicator = document.createElement('div');
             taskIndicator.className = 'calendar-task-indicator';
+            
+            // Verificar status das tarefas para definir a cor do indicador
+            const hasLate = dayTasks.some(task => task.status === 'late');
+            if (hasLate) {
+                taskIndicator.classList.add('has-late');
+            }
+            
             taskIndicator.innerHTML = `
                 <span>${taskCount}</span>
                 <i class="fas fa-tasks"></i>
@@ -176,11 +211,35 @@ function renderCalendar() {
         tasksContainer.className = 'calendar-tasks-container';
         
         // Adicionar tarefas para esta data
-        if (calendarTasks[formattedDate]) {
-            calendarTasks[formattedDate].forEach(task => {
+        if (dayTasks.length > 0) {
+            // Ordenar tarefas: tarefas atrasadas primeiro, depois por status
+            const sortedTasks = [...dayTasks].sort((a, b) => {
+                // Prioriza tarefas atrasadas
+                if (a.status === 'late' && b.status !== 'late') return -1;
+                if (a.status !== 'late' && b.status === 'late') return 1;
+                
+                // Depois, organiza por ordem de status: em andamento, concluído, finalizado
+                const statusOrder = { 'pending': 1, 'completed': 2, 'finished': 3 };
+                return statusOrder[a.status] - statusOrder[b.status];
+            });
+            
+            sortedTasks.forEach(task => {
                 const taskElement = document.createElement('div');
                 taskElement.className = `calendar-task status-${task.status}`;
-                taskElement.textContent = task.text;
+                
+                // Adicionar ícone de status no início da tarefa
+                const statusIcons = {
+                    'pending': '<i class="fas fa-clock"></i>',
+                    'completed': '<i class="fas fa-check"></i>',
+                    'finished': '<i class="fas fa-flag-checkered"></i>',
+                    'late': '<i class="fas fa-exclamation-triangle"></i>'
+                };
+                
+                taskElement.innerHTML = `
+                    <span class="task-status-icon">${statusIcons[task.status] || ''}</span>
+                    <span class="task-text">${task.text}</span>
+                `;
+                
                 taskElement.title = task.text;
                 
                 // Adicionar evento de mouseover para mostrar tooltip
@@ -212,14 +271,13 @@ function renderCalendar() {
                     // Adicionar botão "Ver todas"
                     const viewAllBtn = document.createElement('button');
                     viewAllBtn.className = 'view-all-tasks-btn';
-                    viewAllBtn.innerHTML = `<i class="fas fa-chevron-down"></i> Ver todas ${calendarTasks[formattedDate].length} tarefas`;
+                    viewAllBtn.innerHTML = `<i class="fas fa-chevron-down"></i> Ver todas ${dayTasks.length} tarefas`;
                     viewAllBtn.type = "button"; // Especificar que é um botão
                     
                     // Garantir que o clique na célula não se sobreponha ao clique no botão
                     viewAllBtn.onclick = function(e) {
                         e.preventDefault();
                         e.stopPropagation();
-                        console.log('Botão Ver todas clicado'); // Log para debugging
                         
                         // Expandir o contêiner e tornar todas as tarefas visíveis
                         tasksContainer.style.maxHeight = `${tasksContainer.scrollHeight + 20}px`;
@@ -240,7 +298,6 @@ function renderCalendar() {
                         closeViewBtn.onclick = function(evt) {
                             evt.preventDefault();
                             evt.stopPropagation();
-                            console.log('Botão Fechar clicado'); // Log para debugging
                             
                             // Restaurar altura padrão
                             tasksContainer.style.maxHeight = '';
@@ -261,9 +318,6 @@ function renderCalendar() {
                         return false; // Impedir qualquer outro comportamento padrão
                     };
                     
-                    // Remover o listener de eventos anterior, se existir
-                    viewAllBtn.removeEventListener('click', () => {});
-                    
                     // Inserir botão após o contêiner de tarefas
                     dateCell.insertBefore(viewAllBtn, tasksContainer.nextSibling);
                     
@@ -273,6 +327,11 @@ function renderCalendar() {
                     viewAllBtn.style.cursor = 'pointer';
                 }
             }, 100);
+        } else {
+            // Se não houver tarefas, adicionar mensagem vazia mais sutil
+            const emptyTasksPlaceholder = document.createElement('div');
+            emptyTasksPlaceholder.className = 'empty-tasks-placeholder';
+            tasksContainer.appendChild(emptyTasksPlaceholder);
         }
         
         dateCell.appendChild(tasksContainer);
@@ -287,6 +346,12 @@ function renderCalendar() {
             
             // Criar data formatada para o input datetime-local (YYYY-MM-DDTHH:MM)
             const selectedDate = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}T${currentTime}`;
+            
+            // Adicionar efeito de pulso ao clicar na célula
+            dateCell.classList.add('cell-pulse');
+            setTimeout(() => {
+                dateCell.classList.remove('cell-pulse');
+            }, 500);
             
             // Preparar para nova tarefa
             prepareNewTask();
@@ -317,6 +382,12 @@ function renderCalendar() {
                 container.classList.add('has-more');
             }
         });
+    });
+    
+    // Animar entrada das células do calendário
+    const cells = document.querySelectorAll('.calendar-cell');
+    cells.forEach((cell, index) => {
+        cell.style.animationDelay = `${index * 0.02}s`;
     });
 }
 

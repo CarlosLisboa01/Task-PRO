@@ -19,9 +19,9 @@
     --shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
     --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
     --status-pending: #eab308;
-    --status-completed: #22c55e;
+    --status-completed: #177439;
     --status-finished: #3b82f6;
-    --status-late: #ef4444;
+    --status-late: #ff0000;
 }
 
 body {
@@ -866,8 +866,8 @@ body {
 .calendar-container {
     background-color: var(--surface-color);
     border-radius: var(--border-radius);
-    box-shadow: var(--shadow);
-    padding: 24px;
+    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.08);
+    padding: 30px;
     margin-top: 20px;
     overflow: hidden;
     animation: fadeInUp 0.5s ease-out;
@@ -888,7 +888,7 @@ body {
     display: flex;
     flex-direction: column;
     align-items: center;
-    margin-bottom: 24px;
+    margin-bottom: 30px;
     position: relative;
     gap: 20px;
 }
@@ -896,43 +896,47 @@ body {
 .calendar-nav-group {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 15px;
+    width: 100%;
+    justify-content: center;
 }
 
 .calendar-nav-btn, .calendar-today-btn {
     background: none;
     border: 1px solid var(--border-color);
     border-radius: var(--border-radius);
-    padding: 10px 16px;
+    padding: 12px 20px;
     cursor: pointer;
     transition: all 0.3s ease;
-    font-weight: 500;
+    font-weight: 600;
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 8px;
+    font-size: 0.95rem;
 }
 
 .calendar-nav-btn:hover, .calendar-today-btn:hover {
     background-color: var(--primary-light);
     color: var(--primary-color);
     transform: translateY(-2px);
-    box-shadow: var(--shadow-sm);
+    box-shadow: 0 4px 10px rgba(124, 58, 237, 0.15);
 }
 
 .calendar-today-btn {
     background: linear-gradient(45deg, var(--primary-color), var(--primary-dark));
     color: white;
     border: none;
-    padding: 10px 20px;
-    box-shadow: 0 4px 12px rgba(124, 58, 237, 0.25);
+    padding: 12px 24px;
+    box-shadow: 0 5px 15px rgba(124, 58, 237, 0.3);
 }
 
 #calendar-month-year {
-    font-size: 1.8rem;
+    font-size: 2rem;
     font-weight: 700;
     color: var(--text-primary);
     position: relative;
-    padding-bottom: 6px;
+    padding-bottom: 10px;
+    text-align: center;
 }
 
 #calendar-month-year:after {
@@ -941,17 +945,17 @@ body {
     bottom: 0;
     left: 50%;
     transform: translateX(-50%);
-    width: 60px;
-    height: 3px;
-    background-color: var(--primary-color);
-    border-radius: 3px;
+    width: 80px;
+    height: 4px;
+    background: linear-gradient(90deg, var(--primary-color), var(--primary-light));
+    border-radius: 4px;
 }
 
 .calendar-grid {
     display: grid;
     grid-template-columns: repeat(7, 1fr);
-    gap: 12px;
-    margin-top: 16px;
+    gap: 15px;
+    margin-top: 20px;
 }
 
 /* Cores suaves para as diferentes linhas do calendário */
@@ -982,7 +986,7 @@ body {
     padding: 12px 8px;
     margin-bottom: 8px;
     text-transform: uppercase;
-    font-size: 0.85rem;
+    font-size: 0.9rem;
     letter-spacing: 1px;
 }
 
@@ -993,16 +997,16 @@ body {
 
 .calendar-cell {
     border: 1px solid var(--border-color);
-    border-radius: 10px;
-    min-height: 120px;
-    padding: 12px;
+    border-radius: 12px;
+    min-height: 130px;
+    padding: 15px;
     position: relative;
     display: flex;
     flex-direction: column;
-    gap: 8px;
-    transition: all 0.2s ease;
+    gap: 10px;
+    transition: all 0.3s ease;
     cursor: pointer;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
     background-color: var(--surface-color);
     animation: fadeIn 0.5s ease-out both;
     overflow: hidden;
@@ -1021,15 +1025,14 @@ body {
 /* Aplicar um fundo ligeiramente diferente para células de fim de semana */
 .calendar-cell:nth-child(7n+1),
 .calendar-cell:nth-child(7n) {
-    background-color: var(--primary-light);
-    background-opacity: 0.3;
+    background-color: rgba(124, 58, 237, 0.05);
 }
 
 .calendar-cell:hover {
     background-color: var(--primary-light);
     border-color: var(--primary-color);
-    transform: translateY(-3px);
-    box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+    transform: translateY(-4px);
+    box-shadow: 0 8px 20px rgba(0,0,0,0.1);
     z-index: 5;
     min-height: max-content;
     position: relative;
@@ -1037,7 +1040,7 @@ body {
 
 .calendar-empty {
     background-color: var(--background-color);
-    opacity: 0.5;
+    opacity: 0.4;
     box-shadow: none;
     cursor: default;
 }
@@ -1053,7 +1056,7 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 10px;
+    margin-bottom: 12px;
     position: relative;
 }
 
@@ -1065,18 +1068,18 @@ body {
 .calendar-day-number {
     text-align: left;
     font-weight: 700;
-    font-size: 1.1rem;
+    font-size: 1.2rem;
     color: var(--text-primary);
     position: relative;
     z-index: 1;
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 8px;
 }
 
 .calendar-today .calendar-day-number {
     color: var(--primary-color);
-    font-size: 1.2rem;
+    font-size: 1.3rem;
 }
 
 /* Novo indicador de Hoje */
@@ -1087,11 +1090,11 @@ body {
     background-color: var(--primary-color);
     color: white;
     font-size: 0.65rem;
-    padding: 1px 6px;
-    border-radius: 10px;
+    padding: 2px 8px;
+    border-radius: 12px;
     font-weight: bold;
     letter-spacing: 0.5px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    box-shadow: 0 3px 6px rgba(124, 58, 237, 0.3);
     vertical-align: middle;
     line-height: normal;
 }
@@ -1104,37 +1107,39 @@ body {
 /* Ajuste para que a célula de hoje tenha prioridade adequada */
 .calendar-today {
     border: 2px solid var(--primary-color);
-    background-color: var(--primary-light);
+    background-color: rgba(124, 58, 237, 0.1);
     position: relative;
     z-index: 2; /* Garantir visibilidade em relação a células vizinhas */
+    box-shadow: 0 5px 15px rgba(124, 58, 237, 0.15);
 }
 
 .calendar-task-indicator {
     display: flex;
     align-items: center;
-    gap: 4px;
-    background-color: var(--primary-color);
+    gap: 6px;
+    background: linear-gradient(45deg, var(--primary-color), var(--primary-dark));
     color: white;
-    font-size: 0.75rem;
+    font-size: 0.8rem;
     font-weight: 600;
-    border-radius: 12px;
-    padding: 2px 8px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    border-radius: 20px;
+    padding: 3px 10px;
+    box-shadow: 0 3px 8px rgba(124, 58, 237, 0.25);
 }
 
 .calendar-task-indicator i {
-    font-size: 0.7rem;
+    font-size: 0.75rem;
 }
 
 .calendar-tasks-container {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 8px;
     overflow-y: auto;
-    max-height: 85px;
+    max-height: 95px;
     scrollbar-width: thin;
     scrollbar-color: var(--border-color) transparent;
     transition: max-height 0.3s ease, opacity 0.2s ease;
+    padding-right: 6px;
 }
 
 .calendar-tasks-container::-webkit-scrollbar {
@@ -1151,8 +1156,8 @@ body {
 }
 
 .calendar-task {
-    padding: 6px 10px;
-    border-radius: 6px;
+    padding: 8px 12px;
+    border-radius: 8px;
     font-size: 0.85rem;
     font-weight: 500;
     white-space: nowrap;
@@ -1160,12 +1165,12 @@ body {
     text-overflow: ellipsis;
     cursor: pointer;
     transition: all 0.3s ease;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.08);
 }
 
 .calendar-task:hover {
     transform: translateY(-2px) scale(1.02);
-    box-shadow: 0 3px 6px rgba(0,0,0,0.1);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.12);
 }
 
 .calendar-task.status-pending {
@@ -1203,7 +1208,7 @@ body {
 }
 
 .dark-theme .calendar-today {
-    background-color: #312e81;
+    background-color: rgba(99, 102, 241, 0.2);
     border-color: #6366f1;
 }
 
@@ -1216,15 +1221,16 @@ body {
     .calendar-grid {
         grid-template-columns: repeat(7, 1fr);
         font-size: 0.9rem;
+        gap: 8px;
     }
     
     .calendar-cell {
-        min-height: 80px;
-        padding: 4px;
+        min-height: 90px;
+        padding: 8px;
     }
     
     .calendar-tasks-container {
-        max-height: 50px;
+        max-height: 60px;
     }
     
     .calendar-cell:hover .calendar-tasks-container,
@@ -1233,8 +1239,8 @@ body {
     }
     
     .calendar-task {
-        padding: 2px 4px;
-        font-size: 0.7rem;
+        padding: 4px 8px;
+        font-size: 0.75rem;
     }
 }
 
@@ -1246,11 +1252,11 @@ body {
     color: var(--text-secondary);
     background: linear-gradient(transparent, var(--surface-color) 70%);
     font-weight: bold;
-    padding-top: 10px;
-    margin-top: -15px;
+    padding-top: 15px;
+    margin-top: -20px;
     position: relative;
     pointer-events: none;
-    height: 20px;
+    height: 25px;
     z-index: 1;
 }
 
@@ -1259,82 +1265,72 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 0.75rem;
+    font-size: 0.8rem;
     color: var(--primary-color);
-    background-color: var(--primary-light);
-    border: 1px solid var(--primary-color);
-    border-radius: 12px;
-    padding: 5px 10px;
-    margin-top: 4px;
-    cursor: pointer !important;
-    transition: all 0.2s ease;
-    opacity: 1;
-    z-index: 20;
+    background-color: rgba(124, 58, 237, 0.1);
+    border: none;
+    border-radius: 8px;
+    padding: 6px 10px;
+    margin-top: 6px;
+    cursor: pointer;
+    transition: all 0.3s ease;
     width: 100%;
-    margin-left: auto;
-    margin-right: auto;
-    position: relative;
-    pointer-events: auto;
+    font-weight: 600;
 }
 
 .view-all-tasks-btn i {
-    margin-right: 4px;
     font-size: 0.7rem;
+    margin-right: 4px;
 }
 
 .view-all-tasks-btn:hover {
-    background-color: var(--primary-color);
-    color: white;
-    transform: translateY(-1px);
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    background-color: rgba(124, 58, 237, 0.2);
+    transform: translateY(-2px);
+    box-shadow: 0 3px 6px rgba(0,0,0,0.1);
 }
 
-/* Estilos para células expandidas */
 .calendar-cell.expanded-cell {
-    z-index: 30;
-    position: relative;
-    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
-    transform: translateY(-3px);
-    background-color: var(--primary-light);
+    z-index: 10;
+    min-height: max-content;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+    transform: scale(1.02);
     border-color: var(--primary-color);
+    background-color: var(--surface-color);
 }
 
 .calendar-cell.expanded-cell .calendar-tasks-container {
-    max-height: none !important;
+    max-height: 300px;
     overflow-y: auto;
 }
 
-/* Botão para fechar a visualização expandida */
 .close-expanded-view-btn {
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 0.75rem;
-    color: var(--text-secondary);
-    background-color: var(--surface-color);
+    font-size: 0.8rem;
+    background-color: #f8fafc;
     border: 1px solid var(--border-color);
-    border-radius: 12px;
-    padding: 2px 8px;
-    margin-top: 6px;
+    border-radius: 8px;
+    padding: 6px 10px;
+    margin-top: 10px;
     cursor: pointer;
-    transition: all 0.2s ease;
-    width: fit-content;
-    align-self: center;
-    margin-left: auto;
-    margin-right: auto;
+    transition: all 0.3s ease;
+    width: 100%;
+    font-weight: 500;
+    color: var(--text-secondary);
 }
 
 .close-expanded-view-btn i {
-    margin-right: 4px;
     font-size: 0.7rem;
+    margin-right: 4px;
 }
 
 .close-expanded-view-btn:hover {
-    background-color: var(--primary-light);
+    background-color: #f1f5f9;
     color: var(--primary-color);
-    transform: translateY(-1px);
 }
 
+/* Garantir que o indicador de "mais tarefas" não apareça ao passar o mouse */
 .calendar-cell:hover .calendar-tasks-container.has-more::after {
     display: none;
 }
@@ -1761,4 +1757,102 @@ body {
 
 .empty-message.filtered-empty i {
     color: var(--primary-color);
+}
+
+/* Estilo para dias passados */
+.calendar-past {
+    opacity: 0.85;
+    background-color: rgba(241, 245, 249, 0.6);
+}
+
+.dark-theme .calendar-past {
+    background-color: rgba(30, 41, 59, 0.7);
+    opacity: 0.8;
+}
+
+/* Estilos para ícones de status nas tarefas */
+.task-status-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 6px;
+    font-size: 0.8rem;
+}
+
+/* Estilos para indicador de tarefas com itens atrasados */
+.calendar-task-indicator.has-late {
+    background: linear-gradient(45deg, var(--status-late), #f87171);
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0% {
+        box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4);
+    }
+    70% {
+        box-shadow: 0 0 0 6px rgba(239, 68, 68, 0);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+    }
+}
+
+/* Placeholder para dias sem tarefas */
+.empty-tasks-placeholder {
+    height: 10px;
+    opacity: 0.3;
+    background: repeating-linear-gradient(
+        45deg,
+        transparent,
+        transparent 5px,
+        rgba(124, 58, 237, 0.1) 5px,
+        rgba(124, 58, 237, 0.1) 10px
+    );
+    border-radius: 4px;
+    margin: 8px 0;
+}
+
+/* Efeito de pulso ao clicar em uma célula */
+.cell-pulse {
+    animation: cellPulse 0.5s ease-out;
+}
+
+@keyframes cellPulse {
+    0% {
+        transform: scale(1);
+        box-shadow: 0 0 0 0 rgba(124, 58, 237, 0.7);
+    }
+    50% {
+        transform: scale(1.03);
+        box-shadow: 0 0 0 10px rgba(124, 58, 237, 0);
+    }
+    100% {
+        transform: scale(1);
+        box-shadow: 0 0 0 0 rgba(124, 58, 237, 0);
+    }
+}
+
+/* Melhorias para a visualização das tarefas */
+.calendar-task .task-text {
+    text-overflow: ellipsis;
+    overflow: hidden;
+    white-space: nowrap;
+    flex: 1;
+}
+
+/* Ajuste para garantir que o texto da tarefa tenha espaço para o ícone */
+.calendar-task {
+    display: flex;
+    align-items: center;
+}
+
+/* Evitar que controles duplicados do calendário sejam visíveis */
+.calendar-container .calendar-controls:not(:first-child),
+.calendar-container #calendar-month-year:not(:first-child) {
+    display: none !important; /* Esconder controles duplicados */
+}
+
+/* Garantir que apenas o grid mais recente seja exibido */
+.calendar-container .calendar-grid:not(:last-child) {
+    display: none !important;
 } 

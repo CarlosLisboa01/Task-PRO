@@ -1225,7 +1225,7 @@ style.textContent = `
 `;
 document.head.appendChild(style);
 
-// Funções para notificações
+// Função aprimorada para notificações de sucesso
 function showSuccessNotification(message) {
     const notification = document.createElement('div');
     notification.className = 'notification success';
@@ -1235,15 +1235,33 @@ function showSuccessNotification(message) {
     `;
     document.body.appendChild(notification);
     
+    // Animar entrada com efeito deslizante
+    notification.animate([
+        { transform: 'translateX(100px)', opacity: 0 },
+        { transform: 'translateX(0)', opacity: 1 }
+    ], {
+        duration: 400,
+        easing: 'ease-out',
+        fill: 'forwards'
+    });
+    
+    // Animar saída após delay
     setTimeout(() => {
-        notification.style.opacity = '0';
-        setTimeout(() => notification.remove(), 300);
-    }, 2000);
+        notification.animate([
+            { transform: 'translateX(0)', opacity: 1 },
+            { transform: 'translateX(100px)', opacity: 0 }
+        ], {
+            duration: 400,
+            easing: 'ease-in',
+            fill: 'forwards'
+        }).onfinish = () => notification.remove();
+    }, 3000);
     
     // Garantir que o modal está fechado
     closeModal();
 }
 
+// Função aprimorada para notificações de erro
 function showErrorNotification(message) {
     const notification = document.createElement('div');
     notification.className = 'notification error';
@@ -1253,12 +1271,43 @@ function showErrorNotification(message) {
     `;
     document.body.appendChild(notification);
     
+    // Animar com efeito de shake para alertar o usuário
+    notification.animate([
+        { transform: 'translateX(100px)', opacity: 0 },
+        { transform: 'translateX(0)', opacity: 1 }
+    ], {
+        duration: 400,
+        easing: 'ease-out',
+        fill: 'forwards'
+    }).onfinish = () => {
+        // Adicionar efeito de shake após aparecer
+        notification.animate([
+            { transform: 'translateX(0)' },
+            { transform: 'translateX(-5px)' },
+            { transform: 'translateX(5px)' },
+            { transform: 'translateX(-3px)' },
+            { transform: 'translateX(3px)' },
+            { transform: 'translateX(0)' }
+        ], {
+            duration: 500,
+            easing: 'ease-in-out'
+        });
+    };
+    
+    // Animar saída após delay mais longo para erros
     setTimeout(() => {
-        notification.style.opacity = '0';
-        setTimeout(() => notification.remove(), 300);
+        notification.animate([
+            { transform: 'translateX(0)', opacity: 1 },
+            { transform: 'translateX(100px)', opacity: 0 }
+        ], {
+            duration: 400,
+            easing: 'ease-in',
+            fill: 'forwards'
+        }).onfinish = () => notification.remove();
     }, 4000);
 }
 
+// Função aprimorada para notificações de aviso
 function showWarningNotification(message) {
     const notification = document.createElement('div');
     notification.className = 'notification warning';
@@ -1268,9 +1317,59 @@ function showWarningNotification(message) {
     `;
     document.body.appendChild(notification);
     
+    // Animar entrada
+    notification.animate([
+        { transform: 'translateX(100px)', opacity: 0 },
+        { transform: 'translateX(0)', opacity: 1 }
+    ], {
+        duration: 400,
+        easing: 'ease-out',
+        fill: 'forwards'
+    });
+    
+    // Animar saída após delay
     setTimeout(() => {
-        notification.style.opacity = '0';
-        setTimeout(() => notification.remove(), 300);
+        notification.animate([
+            { transform: 'translateX(0)', opacity: 1 },
+            { transform: 'translateX(100px)', opacity: 0 }
+        ], {
+            duration: 400,
+            easing: 'ease-in',
+            fill: 'forwards'
+        }).onfinish = () => notification.remove();
+    }, 3500);
+}
+
+// Função aprimorada para notificações informativas
+function showInfoNotification(message) {
+    const notification = document.createElement('div');
+    notification.className = 'notification info';
+    notification.innerHTML = `
+        <i class="fas fa-info-circle"></i>
+        ${message}
+    `;
+    document.body.appendChild(notification);
+    
+    // Animar entrada
+    notification.animate([
+        { transform: 'translateX(100px)', opacity: 0 },
+        { transform: 'translateX(0)', opacity: 1 }
+    ], {
+        duration: 400,
+        easing: 'ease-out',
+        fill: 'forwards'
+    });
+    
+    // Animar saída após delay
+    setTimeout(() => {
+        notification.animate([
+            { transform: 'translateX(0)', opacity: 1 },
+            { transform: 'translateX(100px)', opacity: 0 }
+        ], {
+            duration: 400,
+            easing: 'ease-in',
+            fill: 'forwards'
+        }).onfinish = () => notification.remove();
     }, 3000);
 }
 
@@ -1938,88 +2037,211 @@ function updateTaskStatus(taskId, newStatus) {
 // Função para deletar uma tarefa
 function deleteTask(taskId) {
     try {
-        // Confirmar exclusão
-        if (!confirm('Tem certeza que deseja excluir esta tarefa?')) {
-            return;
-        }
-        
-        // Verificar se window.tasks está inicializado
-        if (!window.tasks) {
-            console.error('window.tasks não está inicializado');
-            return false;
-        }
-        
-        // Buscar a tarefa em todas as categorias
+        // Encontrar a tarefa para obter os detalhes
         let taskFound = false;
+        let taskTitle = "";
         let taskCategory = null;
         let taskIndex = -1;
         
         Object.keys(window.tasks).forEach(category => {
             const index = window.tasks[category].findIndex(task => task.id === taskId);
-            
             if (index !== -1) {
-                // Encontramos a tarefa
                 taskFound = true;
+                taskTitle = window.tasks[category][index].title || window.tasks[category][index].text;
                 taskCategory = category;
                 taskIndex = index;
             }
         });
         
-        if (taskFound) {
-            // Primeiro tentar excluir no Supabase
-            (async () => {
-                try {
-                    console.log(`Excluindo tarefa ${taskId} do Supabase...`);
-                    // Aqui chamamos a função do supabase-config.js, usando seu namespace
-                    const success = await window.supabaseApi.deleteTask(taskId);
-                    
-                    if (success) {
-                        console.log(`Tarefa ${taskId} excluída com sucesso do Supabase.`);
-                    } else {
-                        console.error(`Falha ao excluir tarefa ${taskId} do Supabase.`);
-                        showWarningNotification('Tarefa excluída localmente, mas pode permanecer no servidor.');
-                    }
-                } catch (error) {
-                    console.error('Erro na exclusão do Supabase:', error);
-                    showWarningNotification('Tarefa excluída localmente, mas pode permanecer no servidor.');
-                }
-            })();
-            
-            // Independentemente do resultado do Supabase, remover do estado local
-            // Remover a tarefa da lista
-            window.tasks[taskCategory].splice(taskIndex, 1);
-            
-            // Salvar as tarefas no localStorage
-            saveTasks();
-            
-            // Atualizar a lista de tarefas
-            renderTasks();
-            
-            // Exibir notificação de sucesso
-            showSuccessNotification('Tarefa excluída com sucesso!');
-            
-            // Atualizar os gráficos
-            if (typeof updateAnalytics === 'function') {
-                console.log('Atualizando análises após excluir tarefa');
-                updateAnalytics();
-            }
-            
-            // Atualizar o calendário
-            if (typeof loadCalendarTasks === 'function') {
-                console.log('Atualizando calendário após excluir tarefa');
-                loadCalendarTasks();
-            }
-            
-            return true;
-        } else {
+        if (!taskFound) {
             console.error('Tarefa não encontrada:', taskId);
             return false;
         }
+        
+        // Adicionar classe de animação ao elemento antes da confirmação
+        const taskElements = document.querySelectorAll(`[data-task-id="${taskId}"]`);
+        taskElements.forEach(element => {
+            element.classList.add('pre-delete');
+            // Adicionar efeito de tremor
+            element.animate([
+                { transform: 'translateX(0)' },
+                { transform: 'translateX(-5px)' },
+                { transform: 'translateX(5px)' },
+                { transform: 'translateX(0)' }
+            ], {
+                duration: 400,
+                iterations: 1
+            });
+        });
+        
+        // Exibir diálogo de confirmação elegante
+        showConfirmDialog(
+            'Excluir Tarefa',
+            `Tem certeza que deseja excluir a tarefa "${taskTitle}"? Esta ação não pode ser desfeita.`,
+            async () => {
+                // Animar a remoção
+                taskElements.forEach(element => {
+                    element.classList.add('removing');
+                });
+                
+                // Aguardar a animação terminar antes de remover do DOM
+                setTimeout(async () => {
+                    try {
+                        // Primeiro tentar excluir no Supabase
+                        try {
+                            console.log(`Excluindo tarefa ${taskId} do Supabase...`);
+                            // Aqui chamamos a função do supabase-config.js, usando seu namespace
+                            const success = await window.supabaseApi.deleteTask(taskId);
+                            
+                            if (success) {
+                                console.log(`Tarefa ${taskId} excluída com sucesso do Supabase.`);
+                            } else {
+                                console.error(`Falha ao excluir tarefa ${taskId} do Supabase.`);
+                                showWarningNotification('Tarefa excluída localmente, mas pode permanecer no servidor.');
+                            }
+                        } catch (error) {
+                            console.error('Erro na exclusão do Supabase:', error);
+                            showWarningNotification('Tarefa excluída localmente, mas pode permanecer no servidor.');
+                        }
+                        
+                        // Independentemente do resultado do Supabase, remover do estado local
+                        window.tasks[taskCategory].splice(taskIndex, 1);
+                        
+                        // Salvar as tarefas no localStorage
+                        saveTasks();
+                        
+                        // Atualizar a lista de tarefas
+                        renderTasks();
+                        
+                        // Exibir notificação de sucesso
+                        showSuccessNotification('Tarefa excluída com sucesso!');
+                        
+                        // Atualizar os gráficos
+                        if (typeof updateAnalytics === 'function') {
+                            console.log('Atualizando análises após excluir tarefa');
+                            updateAnalytics();
+                        }
+                        
+                        // Atualizar o calendário
+                        if (typeof loadCalendarTasks === 'function') {
+                            console.log('Atualizando calendário após excluir tarefa');
+                            loadCalendarTasks();
+                        }
+                    } catch (error) {
+                        console.error('Erro ao excluir tarefa:', error);
+                        showErrorNotification('Ocorreu um erro ao excluir a tarefa.');
+                    }
+                }, 400); // Tempo para coincidir com a duração da animação
+            },
+            'delete' // Tipo especial para ações de exclusão
+        );
+        
+        return true;
     } catch (error) {
         console.error('Erro ao excluir tarefa:', error);
         showErrorNotification('Ocorreu um erro ao excluir a tarefa.');
         return false;
     }
+}
+
+// Versão aprimorada da função para adicionar feedback visual para tarefas
+function createTaskRow(task) {
+    const row = document.createElement('tr');
+    row.className = 'task-row';
+    
+    // Adicionar classe baseada no status
+    if (task.status) {
+        row.classList.add(`status-${task.status}`);
+    }
+    
+    // Marcar tarefas fixadas
+    if (task.pinned) {
+        row.classList.add('pinned');
+    }
+    
+    // Adicionar id da tarefa como atributo para facilitar manipulação
+    row.setAttribute('data-task-id', task.id);
+    
+    // Adicionar classe de animação para novas tarefas
+    row.classList.add('adding');
+    
+    // Remover a classe após a animação
+    setTimeout(() => {
+        row.classList.remove('adding');
+    }, 500);
+    
+    // Adicionar células
+    row.innerHTML = `
+        <td class="period-cell">${getTaskPeriodText(task.category)}</td>
+        <td class="title-cell">${task.title || task.text}</td>
+        <td class="date-cell">
+            <i class="far fa-calendar-alt"></i>
+            ${formatDateTime(task.startDate)}
+        </td>
+        <td class="date-cell">
+            <i class="far fa-calendar-check"></i>
+            ${formatDateTime(task.endDate)}
+        </td>
+        <td class="status-cell">
+            <select class="status-select status-${task.status}" data-task-id="${task.id}">
+                <option value="pending" ${task.status === 'pending' ? 'selected' : ''}>Em andamento</option>
+                <option value="completed" ${task.status === 'completed' ? 'selected' : ''}>Concluído</option>
+                <option value="finished" ${task.status === 'finished' ? 'selected' : ''}>Finalizado</option>
+                <option value="late" ${task.status === 'late' ? 'selected' : ''}>Em atraso</option>
+            </select>
+        </td>
+        <td class="actions-cell">
+            <button class="edit-button" title="Editar Tarefa">
+                <i class="fas fa-edit"></i>
+            </button>
+            <button class="comments-button" title="Comentários">
+                <i class="far fa-comment-alt"></i>
+                <span class="comments-count" style="display: none;">0</span>
+            </button>
+            <button class="pin-button" title="${task.pinned ? 'Desafixar' : 'Fixar'} Tarefa">
+                <i class="fas fa-thumbtack ${task.pinned ? 'pinned' : ''}"></i>
+            </button>
+            <button class="delete-button" title="Excluir Tarefa">
+                <i class="fas fa-trash-alt"></i>
+            </button>
+        </td>
+    `;
+    
+    // Obter referências para elementos
+    const statusSelect = row.querySelector('.status-select');
+    const editButton = row.querySelector('.edit-button');
+    const commentsButton = row.querySelector('.comments-button');
+    const commentsCount = row.querySelector('.comments-count');
+    const pinButton = row.querySelector('.pin-button');
+    const deleteButton = row.querySelector('.delete-button');
+    
+    // Configurar evento para alteração de status
+    statusSelect.addEventListener('change', function(e) {
+        const newStatus = e.target.value;
+        const taskId = e.target.getAttribute('data-task-id');
+        
+        console.log(`Alterando status da tarefa ${taskId} para ${newStatus}`);
+        
+        // Adicionar classe para destacar a alteração
+        row.classList.add('highlight-success');
+        
+        // Remover classe após a animação
+        setTimeout(() => {
+            row.classList.remove('highlight-success');
+        }, 1500);
+        
+        updateTaskStatus(taskId, newStatus);
+    });
+    
+    // Carregar contagem de comentários
+    loadCommentsCount(task.id).then(count => {
+        if (count > 0) {
+            commentsCount.textContent = count;
+            commentsCount.style.display = 'flex';
+        }
+    });
+    
+    return { row, statusSelect, editButton, commentsButton, commentsCount, pinButton, deleteButton };
 }
 
 // Função para forçar a sincronização com o servidor
@@ -2212,7 +2434,7 @@ function showInfoNotification(message) {
     }, 3000);
 }
 
-// Função para alternar o estado de fixação de uma tarefa
+// Função aprimorada para alternar o estado de fixação de uma tarefa
 function toggleTaskPin(taskId) {
     try {
         // Verificar se window.tasks está inicializado
@@ -2223,41 +2445,93 @@ function toggleTaskPin(taskId) {
         
         // Buscar a tarefa em todas as categorias
         let taskFound = false;
+        let task = null;
+        let taskCategory = null;
+        let taskIndex = -1;
         
         Object.keys(window.tasks).forEach(category => {
-            const taskIndex = window.tasks[category].findIndex(task => task.id === taskId);
+            const index = window.tasks[category].findIndex(t => t.id === taskId);
             
-            if (taskIndex !== -1) {
-                const task = window.tasks[category][taskIndex];
-                // Inverter o estado de fixação
-                task.pinned = !task.pinned;
-                task.updatedAt = new Date().toISOString();
-                
-                // Atualizar a tarefa na lista
-                window.tasks[category][taskIndex] = task;
+            if (index !== -1) {
+                task = window.tasks[category][index];
+                taskCategory = category;
+                taskIndex = index;
                 taskFound = true;
-                
-                // Mostrar notificação
-                if (task.pinned) {
-                    showSuccessNotification('Tarefa fixada com sucesso!');
-                } else {
-                    showSuccessNotification('Tarefa desafixada com sucesso!');
-                }
             }
         });
         
-        if (taskFound) {
-            // Salvar as tarefas no localStorage
-            saveTasks();
-            
-            // Atualizar a lista de tarefas
-            renderTasks();
-            
-            return true;
-        } else {
+        if (!taskFound) {
             console.error('Tarefa não encontrada:', taskId);
             return false;
         }
+        
+        // Animar o elemento antes da mudança
+        const taskElements = document.querySelectorAll(`[data-task-id="${taskId}"]`);
+        
+        // Animar o botão de pin
+        const pinButtons = document.querySelectorAll(`[data-task-id="${taskId}"] .pin-button i`);
+        pinButtons.forEach(icon => {
+            icon.animate([
+                { transform: 'rotate(0deg) scale(1)' },
+                { transform: 'rotate(90deg) scale(1.5)' },
+                { transform: task.pinned ? 'rotate(0deg) scale(1)' : 'rotate(-45deg) scale(1)' }
+            ], {
+                duration: 400,
+                easing: 'ease-out',
+                fill: 'forwards'
+            });
+        });
+        
+        // Adicionar efeito de pulsação nas linhas da tarefa
+        taskElements.forEach(element => {
+            element.animate([
+                { transform: 'scale(1)', boxShadow: '0 0 0 0 rgba(138, 43, 226, 0)' },
+                { transform: 'scale(1.01)', boxShadow: '0 0 0 3px rgba(138, 43, 226, 0.2)' },
+                { transform: 'scale(1)', boxShadow: '0 0 0 0 rgba(138, 43, 226, 0)' }
+            ], {
+                duration: 600,
+                easing: 'ease-out'
+            });
+        });
+        
+        // Inverter o estado de fixação
+        task.pinned = !task.pinned;
+        task.updatedAt = new Date().toISOString();
+        
+        // Atualizar a tarefa na lista
+        window.tasks[taskCategory][taskIndex] = task;
+        
+        // Animar alteração para tarefa fixada/desafixada após breve delay
+        setTimeout(() => {
+            taskElements.forEach(element => {
+                if (task.pinned) {
+                    element.classList.add('pinned');
+                    // Animar ao fixar
+                    element.animate([
+                        { backgroundColor: 'rgba(138, 43, 226, 0.05)' },
+                        { backgroundColor: 'rgba(138, 43, 226, 0.15)' },
+                        { backgroundColor: 'rgba(138, 43, 226, 0.05)' }
+                    ], {
+                        duration: 800,
+                        easing: 'ease-out'
+                    });
+                } else {
+                    element.classList.remove('pinned');
+                }
+            });
+        }, 100);
+        
+        // Salvar as tarefas no localStorage
+        saveTasks();
+        
+        // Mostrar notificação adequada com ícone
+        if (task.pinned) {
+            showSuccessNotification('<i class="fas fa-thumbtack"></i> Tarefa fixada com sucesso!');
+        } else {
+            showSuccessNotification('<i class="fas fa-thumbtack fa-rotate-90"></i> Tarefa desafixada com sucesso!');
+        }
+        
+        return true;
     } catch (error) {
         console.error('Erro ao alternar fixação da tarefa:', error);
         showErrorNotification('Ocorreu um erro ao atualizar a tarefa.');
@@ -2718,3 +2992,126 @@ function simulateCompletedTask(taskId, hoursAgo = 2) {
 
 // Console helper para facilitar teste no console do navegador
 window.simulateCompletedTask = simulateCompletedTask;
+
+// Controle de menu para dispositivos móveis
+document.addEventListener('DOMContentLoaded', function() {
+    const mobileMenuToggle = document.getElementById('mobile-menu-toggle');
+    const sidebar = document.querySelector('.sidebar');
+    
+    // Verificar tamanho da tela e mostrar/esconder o botão de menu
+    function checkScreenSize() {
+        if (window.innerWidth <= 768) {
+            mobileMenuToggle.style.display = 'flex';
+        } else {
+            mobileMenuToggle.style.display = 'none';
+            sidebar.classList.remove('show-mobile'); // Esconder sidebar em tela grande
+        }
+    }
+    
+    // Alternar exibição da sidebar em dispositivos móveis
+    mobileMenuToggle.addEventListener('click', function() {
+        sidebar.classList.toggle('show-mobile');
+        // Alternar ícone
+        const icon = this.querySelector('i');
+        if (sidebar.classList.contains('show-mobile')) {
+            icon.className = 'fas fa-times';
+        } else {
+            icon.className = 'fas fa-bars';
+        }
+    });
+    
+    // Verificar tamanho inicial da tela
+    checkScreenSize();
+    
+    // Verificar quando a tela for redimensionada
+    window.addEventListener('resize', checkScreenSize);
+    
+    // Fechar o menu ao clicar em um link (apenas em dispositivos móveis)
+    const sidebarLinks = document.querySelectorAll('.sidebar-nav a');
+    sidebarLinks.forEach(link => {
+        link.addEventListener('click', function() {
+            if (window.innerWidth <= 768) {
+                sidebar.classList.remove('show-mobile');
+                mobileMenuToggle.querySelector('i').className = 'fas fa-bars';
+            }
+        });
+    });
+});
+
+// Função para exibir modal de confirmação elegante
+function showConfirmDialog(title, message, confirmCallback, type = 'default') {
+    // Criar o modal de confirmação
+    const modal = document.createElement('div');
+    modal.className = 'confirm-modal';
+    
+    // Criar a caixa de confirmação
+    const confirmBox = document.createElement('div');
+    confirmBox.className = 'confirm-box';
+    
+    // Ícone com base no tipo
+    let icon = 'question-circle';
+    if (type === 'delete') icon = 'trash-alt';
+    if (type === 'warning') icon = 'exclamation-triangle';
+    
+    // Cabeçalho
+    const header = document.createElement('div');
+    header.className = 'confirm-header';
+    header.innerHTML = `
+        <i class="fas fa-${icon}"></i>
+        <h3>${title}</h3>
+    `;
+    
+    // Conteúdo
+    const body = document.createElement('div');
+    body.className = 'confirm-body';
+    body.innerHTML = message;
+    
+    // Rodapé com botões
+    const footer = document.createElement('div');
+    footer.className = 'confirm-footer';
+    
+    // Botão Cancelar
+    const cancelBtn = document.createElement('button');
+    cancelBtn.className = 'btn-cancel-action';
+    cancelBtn.textContent = 'Cancelar';
+    cancelBtn.onclick = () => {
+        document.body.removeChild(modal);
+    };
+    
+    // Botão Confirmar
+    const confirmBtn = document.createElement('button');
+    confirmBtn.className = type === 'delete' ? 'btn-confirm-action delete' : 'btn-confirm-action';
+    confirmBtn.textContent = type === 'delete' ? 'Excluir' : 'Confirmar';
+    confirmBtn.onclick = () => {
+        document.body.removeChild(modal);
+        if (typeof confirmCallback === 'function') {
+            confirmCallback();
+        }
+    };
+    
+    // Montar o modal
+    footer.appendChild(cancelBtn);
+    footer.appendChild(confirmBtn);
+    
+    confirmBox.appendChild(header);
+    confirmBox.appendChild(body);
+    confirmBox.appendChild(footer);
+    
+    modal.appendChild(confirmBox);
+    document.body.appendChild(modal);
+    
+    // Focar no botão Cancelar por segurança
+    cancelBtn.focus();
+}
+
+// Função para converter a categoria da tarefa em texto legível
+function getTaskPeriodText(category) {
+    const periodTexts = {
+        day: 'Dia',
+        week: 'Semana',
+        month: 'Mês',
+        year: 'Ano'
+    };
+    
+    return periodTexts[category] || category;
+}

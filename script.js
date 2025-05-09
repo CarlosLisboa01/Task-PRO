@@ -2451,7 +2451,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     window._statusUpdateInterval = setInterval(updateTasksStatus, 60 * 1000);
     
-    // Configurar sincronização automática com o servidor a cada 40 segundos
+    // Configurar sincronização automática com o servidor a cada 10 Minutos
     if (window._serverSyncInterval) {
         clearInterval(window._serverSyncInterval);
     }
@@ -2461,7 +2461,7 @@ document.addEventListener('DOMContentLoaded', function() {
         syncTasksWithServer().catch(error => {
             console.error('Erro na sincronização automática:', error);
         });
-    }, 40 * 1000); // A cada 40 segundos
+    }, 60* 10 * 1000); // A cada 10 Minutos
     
     // Sincronizar quando a página voltar a ficar visível
     document.addEventListener('visibilitychange', () => {

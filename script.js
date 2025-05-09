@@ -529,6 +529,7 @@ async function updateTasksStatus() {
                     
                     updatedTasks.push({
                         id: task.id,
+                        text: task.text,
                         status: newStatus,
                         ...(newStatus === 'finished' ? { finishedAt: task.finishedAt } : {})
                     });
@@ -556,6 +557,49 @@ async function updateTasksStatus() {
         if (typeof loadCalendarTasks === 'function') {
             console.log('Atualizando calendário após mudança automática de status');
             loadCalendarTasks();
+        }
+        
+        // Enviar todas as atualizações de status para o servidor (Supabase)
+        try {
+            console.log(`Enviando ${updatedTasks.length} atualizações de status para o servidor...`);
+            
+            // Processar cada tarefa atualizada
+            const updatePromises = updatedTasks.map(async (task) => {
+                try {
+                    // Criar objeto de atualização para o servidor
+                    const serverUpdate = {
+                        status: task.status
+                    };
+                    
+                    // Adicionar finishedAt se necessário
+                    if (task.status === 'finished' && task.finishedAt) {
+                        serverUpdate.finishedAt = task.finishedAt;
+                    }
+                    
+                    // Enviar para o Supabase
+                    const result = await window.supabaseApi.updateTask(task.id, serverUpdate);
+                    return { id: task.id, success: !!result };
+                } catch (error) {
+                    console.error(`Erro ao atualizar tarefa ${task.id} (${task.text}) no servidor:`, error);
+                    return { id: task.id, success: false, error };
+                }
+            });
+            
+            // Aguardar todas as atualizações
+            const results = await Promise.allSettled(updatePromises);
+            
+            // Verificar resultados
+            const successCount = results.filter(r => r.status === 'fulfilled' && r.value.success).length;
+            const failCount = updatedTasks.length - successCount;
+            
+            console.log(`Atualizações no servidor: ${successCount} bem-sucedidas, ${failCount} falhas`);
+            
+            if (failCount > 0) {
+                showWarningNotification(`${failCount} tarefas não puderam ser atualizadas no servidor.`);
+            }
+        } catch (error) {
+            console.error('Erro ao enviar atualizações automáticas para o servidor:', error);
+            showWarningNotification('Não foi possível sincronizar algumas alterações de status com o servidor.');
         }
         
         console.log(`${updatedTasks.length} tarefas tiveram status atualizado automaticamente`);
@@ -1790,6 +1834,7 @@ function updateTaskStatus(taskId, newStatus) {
         
         // Buscar a tarefa em todas as categorias
         let taskFound = false;
+        let updatedTask = null;
         
         Object.keys(window.tasks).forEach(category => {
             const taskIndex = window.tasks[category].findIndex(task => task.id === taskId);
@@ -1815,11 +1860,48 @@ function updateTaskStatus(taskId, newStatus) {
                 
                 // Atualizar a tarefa na lista
                 window.tasks[category][taskIndex] = task;
+                updatedTask = task;
                 taskFound = true;
             }
         });
         
-        if (taskFound) {
+        if (taskFound && updatedTask) {
+            // Enviar a atualização para o servidor primeiro
+            try {
+                console.log('Enviando atualização de status para o servidor:', updatedTask);
+                // Criar objeto com apenas os campos necessários para atualização
+                const serverUpdate = {
+                    status: newStatus,
+                    updatedAt: updatedTask.updatedAt
+                };
+                
+                // Adicionar campos condicionais
+                if (newStatus === 'completed') {
+                    serverUpdate.completedAt = updatedTask.completedAt;
+                }
+                if (newStatus === 'finished') {
+                    serverUpdate.finishedAt = updatedTask.finishedAt;
+                }
+                
+                // Enviar para o Supabase
+                window.supabaseApi.updateTask(taskId, serverUpdate)
+                    .then(result => {
+                        if (result) {
+                            console.log('Status atualizado com sucesso no servidor');
+                        } else {
+                            console.warn('Falha ao atualizar status no servidor, mas foi salvo localmente');
+                            showWarningNotification('Status atualizado localmente, mas não no servidor.');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Erro ao enviar atualização para o servidor:', error);
+                        showWarningNotification('Status atualizado localmente, mas não no servidor.');
+                    });
+            } catch (serverError) {
+                console.error('Erro ao tentar atualizar no servidor:', serverError);
+                showWarningNotification('Status atualizado localmente, mas não no servidor.');
+            }
+            
             // Salvar as tarefas no localStorage
             saveTasks();
             
@@ -1955,6 +2037,21 @@ async function syncTasksWithServer() {
             return false;
         }
         
+        // Armazenar cópia das tarefas locais para uso posterior na mesclagem
+        const localTasks = JSON.parse(JSON.stringify(window.tasks));
+        
+        // Criar um mapa das tarefas locais para facilitar a comparação
+        const localTasksMap = {};
+        Object.keys(localTasks).forEach(category => {
+            localTasks[category].forEach(task => {
+                localTasksMap[task.id] = {
+                    category,
+                    task: { ...task },
+                    updatedAt: task.updatedAt ? new Date(task.updatedAt).getTime() : 0
+                };
+            });
+        });
+        
         // Obter tarefas do servidor
         console.log('Buscando tarefas do servidor...');
         const serverTasks = await window.supabaseApi.fetchTasks();
@@ -1966,8 +2063,8 @@ async function syncTasksWithServer() {
         }
         
         // Contar tarefas locais antes da sincronização
-        const localTasksCount = Object.keys(window.tasks).reduce((count, category) => {
-            return count + window.tasks[category].length;
+        const localTasksCount = Object.keys(localTasks).reduce((count, category) => {
+            return count + localTasks[category].length;
         }, 0);
         
         // Contar tarefas do servidor
@@ -1977,36 +2074,100 @@ async function syncTasksWithServer() {
         
         console.log(`Comparando tarefas - Local: ${localTasksCount}, Servidor: ${serverTasksCount}`);
         
-        // Verificar diferenças
-        if (localTasksCount > serverTasksCount) {
-            console.log(`Detectadas potenciais exclusões no servidor (${localTasksCount - serverTasksCount} tarefas a menos)`);
-            
-            // Identificar IDs de tarefas locais
-            const localTaskIds = new Set();
-            Object.keys(window.tasks).forEach(category => {
-                window.tasks[category].forEach(task => {
-                    localTaskIds.add(task.id);
-                });
+        // Tarefas para atualizar no servidor após a mesclagem
+        const tasksToUpdateOnServer = [];
+        
+        // Mesclar tarefas do servidor com locais, preservando alterações locais mais recentes
+        Object.keys(serverTasks).forEach(category => {
+            serverTasks[category].forEach((serverTask, index) => {
+                const localTaskInfo = localTasksMap[serverTask.id];
+                
+                // Se a tarefa existe localmente, verificar qual versão é mais recente
+                if (localTaskInfo) {
+                    const serverUpdatedAt = serverTask.updatedAt ? new Date(serverTask.updatedAt).getTime() : 0;
+                    
+                    // Se a versão local foi atualizada mais recentemente, manter seus dados (especialmente o status)
+                    if (localTaskInfo.updatedAt > serverUpdatedAt) {
+                        console.log(`Tarefa ${serverTask.id} (${serverTask.text}) mais recente localmente - preservando status local: ${localTaskInfo.task.status}`);
+                        
+                        // Atualizar a versão do servidor com os dados locais
+                        serverTasks[category][index] = { ...serverTask, ...localTaskInfo.task };
+                        
+                        // Adicionar à lista para atualizar no servidor posteriormente
+                        tasksToUpdateOnServer.push({
+                            id: serverTask.id,
+                            updates: {
+                                status: localTaskInfo.task.status,
+                                updatedAt: localTaskInfo.task.updatedAt,
+                                ...(localTaskInfo.task.completedAt ? { completedAt: localTaskInfo.task.completedAt } : {}),
+                                ...(localTaskInfo.task.finishedAt ? { finishedAt: localTaskInfo.task.finishedAt } : {})
+                            }
+                        });
+                    } else {
+                        console.log(`Tarefa ${serverTask.id} (${serverTask.text}) mais recente no servidor - usando status do servidor: ${serverTask.status}`);
+                    }
+                }
             });
-            
-            // Identificar IDs de tarefas do servidor
-            const serverTaskIds = new Set();
-            Object.keys(serverTasks).forEach(category => {
-                serverTasks[category].forEach(task => {
-                    serverTaskIds.add(task.id);
-                });
+        });
+        
+        // Verificar tarefas locais que não existem no servidor (possivelmente novas tarefas criadas offline)
+        const serverTaskIds = new Set();
+        Object.keys(serverTasks).forEach(category => {
+            serverTasks[category].forEach(task => {
+                serverTaskIds.add(task.id);
             });
+        });
+        
+        // Encontrar tarefas locais que não existem no servidor
+        const newLocalTasks = [];
+        Object.keys(localTasks).forEach(category => {
+            localTasks[category].forEach(task => {
+                if (!serverTaskIds.has(task.id)) {
+                    newLocalTasks.push({ category, task });
+                }
+            });
+        });
+        
+        // Adicionar novas tarefas locais ao servidor e à estrutura mesclada
+        if (newLocalTasks.length > 0) {
+            console.log(`Encontradas ${newLocalTasks.length} novas tarefas locais para adicionar ao servidor`);
             
-            // Encontrar tarefas que existem localmente mas não no servidor
-            const removedTaskIds = Array.from(localTaskIds).filter(id => !serverTaskIds.has(id));
-            
-            if (removedTaskIds.length > 0) {
-                console.log(`Identificadas ${removedTaskIds.length} tarefas excluídas no servidor:`, removedTaskIds);
-                showWarningNotification(`${removedTaskIds.length} tarefas foram excluídas do servidor e serão removidas localmente`);
+            for (const { category, task } of newLocalTasks) {
+                // Adicionar à estrutura mesclada
+                if (!serverTasks[category]) {
+                    serverTasks[category] = [];
+                }
+                serverTasks[category].push(task);
+                
+                // Tentar adicionar ao servidor
+                try {
+                    const result = await window.supabaseApi.addTask(task);
+                    if (result) {
+                        console.log(`Tarefa ${task.id} (${task.text}) adicionada ao servidor com sucesso`);
+                    } else {
+                        console.warn(`Não foi possível adicionar a tarefa ${task.id} (${task.text}) ao servidor`);
+                    }
+                } catch (error) {
+                    console.error(`Erro ao adicionar tarefa ${task.id} ao servidor:`, error);
+                }
             }
         }
         
-        // Atualizar o estado local com os dados do servidor
+        // Atualizar tarefas no servidor com as alterações locais mais recentes
+        if (tasksToUpdateOnServer.length > 0) {
+            console.log(`Enviando ${tasksToUpdateOnServer.length} atualizações para o servidor...`);
+            
+            for (const { id, updates } of tasksToUpdateOnServer) {
+                try {
+                    await window.supabaseApi.updateTask(id, updates);
+                    console.log(`Atualização para o servidor da tarefa ${id} concluída com sucesso`);
+                } catch (error) {
+                    console.error(`Erro ao atualizar tarefa ${id} no servidor:`, error);
+                }
+            }
+        }
+        
+        // Atualizar o estado local com os dados mesclados
         window.tasks = serverTasks;
         
         // Salvar no localStorage

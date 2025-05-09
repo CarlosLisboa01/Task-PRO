@@ -518,112 +518,27 @@ async function updateTasksStatus() {
 // Função para filtrar tarefas
 function filterTasks(searchTerm) {
     const term = searchTerm.toLowerCase();
-    Object.keys(tasks).forEach(category => {
-        const taskList = document.querySelector(`#${category} .task-list`);
-        const taskItems = taskList.querySelectorAll('.task-item');
+    const tableBody = document.getElementById('task-table-body');
+    const rows = tableBody.querySelectorAll('tr');
+    
+    let visibleCount = 0;
+    
+    rows.forEach(row => {
+        const taskText = row.querySelector('.title-cell').textContent.toLowerCase();
+        const isVisible = taskText.includes(term);
         
-        taskItems.forEach(item => {
-            const text = item.querySelector('.task-content').textContent.toLowerCase();
-            item.style.display = text.includes(term) ? '' : 'none';
-        });
+        row.style.display = isVisible ? '' : 'none';
+        
+        if (isVisible) {
+            visibleCount++;
+        }
     });
-}
-
-// Função para criar elemento de tarefa
-function createTaskElement(task) {
-    const taskElement = document.createElement('div');
-    taskElement.className = `task-item status-${task.status}`;
-    taskElement.dataset.id = task.id; // Armazenar o ID para operações CRUD
     
-    // Adicionar classe de tarefa fixada, se aplicável
-    if (task.pinned) {
-        taskElement.classList.add('pinned');
+    // Mostrar mensagem se não houver resultados
+    const noTasksMessage = document.getElementById('no-tasks-message');
+    if (noTasksMessage) {
+        noTasksMessage.style.display = visibleCount === 0 ? 'flex' : 'none';
     }
-    
-    const taskContent = document.createElement('div');
-    taskContent.className = 'task-content';
-    
-    const taskDates = document.createElement('div');
-    taskDates.className = 'task-dates';
-    taskDates.innerHTML = `
-        <span><i class="fas fa-hourglass-start"></i> ${formatDateTime(task.startDate)}</span>
-        <span><i class="fas fa-hourglass-end"></i> ${formatDateTime(task.endDate)}</span>
-    `;
-    
-    const taskText = document.createElement('div');
-    taskText.textContent = task.text;
-    
-    taskContent.appendChild(taskDates);
-    taskContent.appendChild(taskText);
-    
-    const actionsDiv = document.createElement('div');
-    actionsDiv.className = 'task-actions';
-    
-    const statusSelect = document.createElement('select');
-    statusSelect.className = `status-${task.status}`;
-    
-    statusSelect.innerHTML = Object.entries({
-        pending: 'Em andamento',
-        completed: 'Concluído',
-        finished: 'Finalizado',
-        late: 'Em atraso'
-    }).map(([value, text]) => `
-        <option value="${value}" ${task.status === value ? 'selected' : ''}>
-            ${text}
-        </option>
-    `).join('');
-    
-    // Botão de comentários
-    const commentsButton = document.createElement('button');
-    commentsButton.className = 'comments-button';
-    commentsButton.innerHTML = '<i class="fas fa-comments"></i>';
-    commentsButton.title = 'Ver comentários';
-    
-    // Contador de comentários (será atualizado quando os comentários forem carregados)
-    const commentsCount = document.createElement('span');
-    commentsCount.className = 'comments-count';
-    commentsCount.style.display = 'none'; // Inicialmente oculto
-    commentsButton.appendChild(commentsCount);
-    
-    // Evento para abrir modal de comentários
-    commentsButton.addEventListener('click', (e) => {
-        e.stopPropagation();
-        openCommentsModal(task.id);
-    });
-    
-    // Botão de fixar
-    const pinButton = document.createElement('button');
-    pinButton.className = 'pin-button';
-    pinButton.innerHTML = task.pinned 
-        ? '<i class="fas fa-thumbtack pinned" title="Desafixar"></i>' 
-        : '<i class="fas fa-thumbtack" title="Fixar"></i>';
-    pinButton.title = task.pinned ? 'Desafixar' : 'Fixar';
-    
-    const deleteButton = document.createElement('button');
-    deleteButton.className = 'delete-button';
-    deleteButton.innerHTML = '<i class="fas fa-trash-alt"></i>';
-    deleteButton.title = 'Excluir tarefa';
-    
-    actionsDiv.appendChild(statusSelect);
-    actionsDiv.appendChild(commentsButton);
-    actionsDiv.appendChild(pinButton);
-    actionsDiv.appendChild(deleteButton);
-    
-    taskElement.appendChild(taskContent);
-    taskElement.appendChild(actionsDiv);
-    
-    // Adicionar animação de entrada
-    taskElement.style.opacity = '0';
-    taskElement.style.transform = 'translateY(20px)';
-    setTimeout(() => {
-        taskElement.style.opacity = '1';
-        taskElement.style.transform = 'translateY(0)';
-    }, 50);
-    
-    // Carregar contagem de comentários (assíncrono)
-    loadCommentsCount(task.id);
-    
-    return { taskElement, statusSelect, pinButton, deleteButton, commentsButton, commentsCount };
 }
 
 // Função para renderizar tarefas
@@ -657,122 +572,383 @@ function renderTasks() {
         }
     }
     
+    // Obter todas as tarefas
+    let allTasks = [];
+    let filteredTasks = [];
+    const periodFilter = document.querySelector('input[name="period-filter"]:checked')?.value || 'all';
+    const statusFilter = document.querySelector('input[name="status-filter"]:checked')?.value || 'all';
+    
+    console.log('Aplicando filtros:', 'Período:', periodFilter, 'Status:', statusFilter);
+    
+    // Combinar tarefas de todas as categorias
     Object.keys(window.tasks).forEach(category => {
-        const taskList = document.querySelector(`#${category} .task-list`);
-        if (!taskList) {
-            console.warn(`Lista de tarefas não encontrada para categoria: ${category}`);
-            return;
+        // Se filtro de período não for 'all', apenas processar a categoria correspondente
+        if (periodFilter === 'all' || periodFilter === category) {
+            window.tasks[category].forEach(task => {
+                // Adicionar categoria como propriedade da tarefa para exibição
+                task.periodCategory = category;
+                allTasks.push(task);
+            });
         }
-        
-        taskList.innerHTML = '';
-        
-        if (window.tasks[category].length === 0) {
-            const emptyMessage = document.createElement('div');
-            emptyMessage.className = 'empty-message';
-            emptyMessage.innerHTML = `
-                <i class="fas fa-inbox"></i>
-                <p>Nenhuma tarefa ainda</p>
-            `;
-            taskList.appendChild(emptyMessage);
-            return;
-        }
-        
-        // Ordenar tarefas: primeiro as fixadas, depois as não fixadas
-        const sortedTasks = [...window.tasks[category]].sort((a, b) => {
-            if (a.pinned && !b.pinned) return -1;
-            if (!a.pinned && b.pinned) return 1;
-            return 0;
-        });
-        
-        sortedTasks.forEach((task) => {
-            const { taskElement, statusSelect, pinButton, deleteButton, commentsButton, commentsCount } = createTaskElement(task);
-            
-            // Evento para atualizar status
-            statusSelect.addEventListener('change', async (e) => {
-                const newStatus = e.target.value;
-                
-                // Atualizar no estado local
-                const originalIndex = window.tasks[category].findIndex(t => t.id === task.id);
-                if (originalIndex !== -1) {
-                    window.tasks[category][originalIndex].status = newStatus;
-                    
-                    // Atualizar classe do elemento da tarefa
-                    taskElement.className = `task-item status-${newStatus}`;
-                    if (task.pinned) {
-                        taskElement.classList.add('pinned');
-                    }
-                    
-                    // Atualizar classe do select
-                    statusSelect.className = `status-${newStatus}`;
-                    
-                    // Salvar no localStorage e atualizar analytics
-                    saveTasks();
-                    
-                    // Salvar no Supabase
-                    try {
-                        await updateTask(task.id, { status: newStatus });
-                    } catch (error) {
-                        console.error('Erro ao atualizar status no Supabase:', error);
-                        showErrorNotification('Erro ao atualizar status no servidor');
-                    }
-                }
-            });
-            
-            // Evento para fixar/desafixar tarefa
-            pinButton.addEventListener('click', async () => {
-                const originalIndex = window.tasks[category].findIndex(t => t.id === task.id);
-                if (originalIndex !== -1) {
-                    const newPinnedState = !window.tasks[category][originalIndex].pinned;
-                    window.tasks[category][originalIndex].pinned = newPinnedState;
-                    
-                    // Salvar no localStorage e atualizar analytics
-                    saveTasks();
-                    
-                    // Salvar no Supabase
-                    try {
-                        await updateTask(task.id, { pinned: newPinnedState });
-                        renderTasks(); // Re-renderizar para atualizar a ordem
-                    } catch (error) {
-                        console.error('Erro ao atualizar pin no Supabase:', error);
-                        showErrorNotification('Erro ao fixar/desafixar tarefa no servidor');
-                    }
-                }
-            });
-            
-            // Evento para deletar tarefa
-            deleteButton.addEventListener('click', async (e) => {
-                e.stopPropagation();
-                
-                // Animar a saída da tarefa
-                taskElement.style.opacity = '0';
-                taskElement.style.transform = 'translateY(20px)';
-                
-                setTimeout(async () => {
-                    const originalIndex = window.tasks[category].findIndex(t => t.id === task.id);
-                    if (originalIndex !== -1) {
-                        // Remover do estado local
-                        window.tasks[category].splice(originalIndex, 1);
-                        
-                        // Salvar no localStorage e atualizar analytics
-                        saveTasks();
-                        renderTasks();
-                        
-                        // Remover do Supabase
-                        try {
-                            await deleteTask(task.id);
-                        } catch (error) {
-                            console.error('Erro ao deletar tarefa no Supabase:', error);
-                            showErrorNotification('Erro ao excluir tarefa no servidor');
-                        }
-                    }
-                }, 300);
-            });
-            
-            taskList.appendChild(taskElement);
-        });
     });
     
-    updateTaskCounts();
+    // Aplicar filtro de status
+    filteredTasks = statusFilter === 'all' 
+        ? allTasks 
+        : allTasks.filter(task => task.status === statusFilter);
+    
+    console.log('Tarefas filtradas:', filteredTasks.length, 'de', allTasks.length, 'tarefas totais');
+    
+    // Ordenar tarefas: primeiro as fixadas, depois as não fixadas
+    filteredTasks.sort((a, b) => {
+        if (a.pinned && !b.pinned) return -1;
+        if (!a.pinned && b.pinned) return 1;
+        return 0;
+    });
+    
+    // Obter o elemento da tabela
+    const tableBody = document.getElementById('task-table-body');
+    const noTasksMessage = document.getElementById('no-tasks-message');
+    
+    // Limpar a tabela
+    tableBody.innerHTML = '';
+    
+    // Mostrar mensagem se não houver tarefas
+    if (filteredTasks.length === 0) {
+        if (noTasksMessage) {
+            noTasksMessage.style.display = 'flex';
+        }
+        return;
+    } else {
+        if (noTasksMessage) {
+            noTasksMessage.style.display = 'none';
+        }
+    }
+    
+    // Renderizar cada tarefa
+    filteredTasks.forEach(task => {
+        const { row, statusSelect, editButton, commentsButton, commentsCount, pinButton, deleteButton } = createTaskRow(task);
+        
+        // Evento para botão de editar
+        editButton.addEventListener('click', (e) => {
+            e.stopPropagation();
+            openEditTaskModal(task);
+        });
+        
+        // Evento para botão de comentários
+        commentsButton.addEventListener('click', (e) => {
+            e.stopPropagation();
+            openCommentsModal(task.id);
+        });
+        
+        // Evento para botão de fixar
+        pinButton.addEventListener('click', (e) => {
+            e.stopPropagation();
+            // Inverter o estado de fixação
+            toggleTaskPin(task.id);
+        });
+        
+        // Evento para botão de excluir
+        deleteButton.addEventListener('click', (e) => {
+            e.stopPropagation();
+            deleteTask(task.id);
+        });
+        
+        // Evento para mudar status
+        statusSelect.addEventListener('change', async (e) => {
+            const newStatus = e.target.value;
+            
+            // Atualizar no estado local
+            const originalCategory = task.periodCategory;
+            const originalIndex = window.tasks[originalCategory].findIndex(t => t.id === task.id);
+            
+            if (originalIndex !== -1) {
+                window.tasks[originalCategory][originalIndex].status = newStatus;
+                
+                // Aplicar a classe do novo status à linha
+                row.className = `task-row status-${newStatus}`;
+                if (task.pinned) {
+                    row.classList.add('pinned');
+                }
+                
+                // Atualizar estilo do select
+                statusSelect.className = `status-select status-${newStatus}`;
+                
+                // Atualizar também no banco de dados/storage
+                updateTaskStatus(task.id, newStatus);
+                
+                // Re-renderizar para aplicar os filtros, se necessário
+                renderTasks();
+            }
+        });
+        
+        // Adicionar a linha à tabela
+        tableBody.appendChild(row);
+    });
+}
+
+// Função para criar linha da tarefa na tabela
+function createTaskRow(task) {
+    const row = document.createElement('tr');
+    row.className = `task-row status-${task.status}`;
+    row.dataset.id = task.id;
+    
+    // Adicionar classe de tarefa fixada, se aplicável
+    if (task.pinned) {
+        row.classList.add('pinned');
+    }
+    
+    // Mapeamento de categorias para texto amigável
+    const periodNames = {
+        day: 'Dia',
+        week: 'Semana',
+        month: 'Mês',
+        year: 'Ano'
+    };
+    
+    // Coluna Período
+    const periodCell = document.createElement('td');
+    periodCell.className = 'period-cell';
+    periodCell.textContent = periodNames[task.periodCategory] || task.periodCategory;
+    
+    // Coluna Nome da Tarefa
+    const titleCell = document.createElement('td');
+    titleCell.className = 'title-cell';
+    titleCell.textContent = task.text;
+    
+    // Coluna Data de Início
+    const startDateCell = document.createElement('td');
+    startDateCell.className = 'date-cell';
+    startDateCell.textContent = formatDateTime(task.startDate);
+    
+    // Coluna Data Final
+    const endDateCell = document.createElement('td');
+    endDateCell.className = 'date-cell';
+    endDateCell.textContent = formatDateTime(task.endDate);
+    
+    // Coluna Status
+    const statusCell = document.createElement('td');
+    statusCell.className = 'status-cell';
+    
+    const statusSelect = document.createElement('select');
+    statusSelect.className = `status-select status-${task.status}`;
+    
+    statusSelect.innerHTML = Object.entries({
+        pending: 'Em andamento',
+        completed: 'Concluído',
+        finished: 'Finalizado',
+        late: 'Em atraso'
+    }).map(([value, text]) => `
+        <option value="${value}" ${task.status === value ? 'selected' : ''}>
+            ${text}
+        </option>
+    `).join('');
+    
+    statusCell.appendChild(statusSelect);
+    
+    // Coluna Ações
+    const actionsCell = document.createElement('td');
+    actionsCell.className = 'actions-cell';
+    
+    // Botão Editar
+    const editButton = document.createElement('button');
+    editButton.className = 'edit-button';
+    editButton.innerHTML = '<i class="fas fa-edit"></i>';
+    editButton.title = 'Editar tarefa';
+    
+    // Botão de comentários
+    const commentsButton = document.createElement('button');
+    commentsButton.className = 'comments-button';
+    commentsButton.innerHTML = '<i class="fas fa-comments"></i>';
+    commentsButton.title = 'Ver comentários';
+    
+    // Contador de comentários
+    const commentsCount = document.createElement('span');
+    commentsCount.className = 'comments-count';
+    commentsCount.style.display = 'none';
+    commentsButton.appendChild(commentsCount);
+    
+    // Botão de fixar
+    const pinButton = document.createElement('button');
+    pinButton.className = 'pin-button';
+    pinButton.innerHTML = task.pinned 
+        ? '<i class="fas fa-thumbtack pinned" title="Desafixar"></i>' 
+        : '<i class="fas fa-thumbtack" title="Fixar"></i>';
+    pinButton.title = task.pinned ? 'Desafixar' : 'Fixar';
+    
+    // Botão de excluir
+    const deleteButton = document.createElement('button');
+    deleteButton.className = 'delete-button';
+    deleteButton.innerHTML = '<i class="fas fa-trash-alt"></i>';
+    deleteButton.title = 'Excluir tarefa';
+    
+    // Adicionar botões à célula de ações
+    actionsCell.appendChild(editButton);
+    actionsCell.appendChild(commentsButton);
+    actionsCell.appendChild(pinButton);
+    actionsCell.appendChild(deleteButton);
+    
+    // Adicionar células à linha
+    row.appendChild(periodCell);
+    row.appendChild(titleCell);
+    row.appendChild(startDateCell);
+    row.appendChild(endDateCell);
+    row.appendChild(statusCell);
+    row.appendChild(actionsCell);
+    
+    // Eventos dos botões serão adicionados na função renderTasks
+    
+    // Carregar contagem de comentários
+    loadCommentsCount(task.id);
+    
+    return { row, statusSelect, editButton, commentsButton, commentsCount, pinButton, deleteButton };
+}
+
+// Função para abrir modal de edição de tarefa
+function openEditTaskModal(task) {
+    // Verificar se o modal existe
+    if (!taskFormModal) {
+        console.error("Modal não encontrado!");
+        return;
+    }
+    
+    // Preparar o formulário para edição
+    const form = document.getElementById('task-form');
+    const titleInput = document.getElementById('task-input');
+    const categorySelect = document.getElementById('task-category');
+    const startDateInput = document.getElementById('task-start-date');
+    const endDateInput = document.getElementById('task-end-date');
+    
+    // Atualizar título do modal
+    document.querySelector('.form-header h3').textContent = 'Editar Tarefa';
+    
+    // Preencher o formulário com os dados da tarefa
+    titleInput.value = task.text;
+    categorySelect.value = task.periodCategory;
+    
+    // Formatar as datas para o formato esperado pelo input datetime-local
+    const startDate = new Date(task.startDate);
+    const endDate = new Date(task.endDate);
+    
+    // Transformar a data em string no formato YYYY-MM-DDThh:mm
+    startDateInput.value = startDate.toISOString().slice(0, 16);
+    endDateInput.value = endDate.toISOString().slice(0, 16);
+    
+    // Selecionar o status correto
+    document.querySelector(`input[name="status"][value="${task.status}"]`).checked = true;
+    
+    // Alterar o texto do botão de submit
+    const submitButton = document.querySelector('.btn-submit');
+    submitButton.innerHTML = '<i class="fas fa-save"></i> Salvar Alterações';
+    
+    // Armazenar o ID da tarefa em edição
+    form.dataset.editTaskId = task.id;
+    
+    // Abrir o modal
+    openModal();
+    
+    // Modificar o comportamento do formulário para edição
+    const originalSubmitHandler = form.onsubmit;
+    form.onsubmit = async function(e) {
+        e.preventDefault();
+        
+        const text = titleInput.value.trim();
+        const category = categorySelect.value;
+        const startDate = startDateInput.value;
+        const endDate = endDateInput.value;
+        
+        // Verificar se todos os campos estão preenchidos
+        if (!text || !startDate || !endDate) {
+            showErrorNotification('Todos os campos são obrigatórios');
+            return;
+        }
+        
+        const status = document.querySelector('input[name="status"]:checked').value;
+        
+        if (!validateDates(startDate, endDate)) {
+            showErrorNotification('A data/hora final deve ser posterior à data/hora inicial');
+            return;
+        }
+        
+        if (text && startDate && endDate) {
+            // Formatar as datas para ISO
+            const startISO = new Date(startDate).toISOString();
+            const endISO = new Date(endDate).toISOString();
+            const updatedISO = new Date().toISOString();
+            
+            // ID da tarefa em edição
+            const taskId = form.dataset.editTaskId;
+            
+            // Buscar a categoria original da tarefa
+            const originalCategory = task.periodCategory;
+            const originalIndex = window.tasks[originalCategory].findIndex(t => t.id === taskId);
+            
+            if (originalIndex !== -1) {
+                // Criar objeto com as alterações
+                const updatedTask = {
+                    ...window.tasks[originalCategory][originalIndex],
+                    text,
+                    startDate: startISO,
+                    endDate: endISO,
+                    status,
+                    updatedAt: updatedISO
+                };
+                
+                try {
+                    // Mostrar indicador de carregamento
+                    showButtonLoading(submitButton);
+                    
+                    // Se a categoria mudou, precisamos mover a tarefa
+                    if (originalCategory !== category) {
+                        // Remover da categoria original
+                        window.tasks[originalCategory].splice(originalIndex, 1);
+                        
+                        // Adicionar na nova categoria
+                        window.tasks[category].push(updatedTask);
+                    } else {
+                        // Atualizar na mesma categoria
+                        window.tasks[originalCategory][originalIndex] = updatedTask;
+                    }
+                    
+                    // Salvar no localStorage e atualizar analytics
+                    saveTasks();
+                    
+                    // Atualizar no Supabase
+                    try {
+                        await updateTask(taskId, updatedTask);
+                    } catch (error) {
+                        console.error('Erro ao atualizar tarefa no Supabase:', error);
+                        showWarningNotification('Tarefa atualizada localmente, mas não no servidor.');
+                    }
+                    
+                    // Renderizar novamente as tarefas
+                    renderTasks();
+                    
+                    // Mostrar notificação de sucesso
+                    showSuccessNotification('Tarefa atualizada com sucesso!');
+                    
+                    // Fechar o modal e resetar o formulário
+                    closeModal();
+                    setTimeout(() => {
+                        // Resetar o formulário para o estado de adicionar nova tarefa
+                        document.querySelector('.form-header h3').textContent = 'Nova Tarefa';
+                        submitButton.innerHTML = '<i class="fas fa-plus"></i> Adicionar Tarefa';
+                        form.removeAttribute('data-edit-task-id');
+                        form.reset();
+                        
+                        // Restaurar o comportamento original do formulário
+                        form.onsubmit = originalSubmitHandler;
+                    }, 300);
+                } catch (error) {
+                    console.error('Erro ao atualizar tarefa:', error);
+                    showErrorNotification('Erro ao atualizar tarefa');
+                } finally {
+                    // Esconder indicador de carregamento
+                    hideButtonLoading(submitButton);
+                }
+            }
+        }
+    };
 }
 
 // Pesquisa de tarefas
@@ -1459,7 +1635,7 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // Função para adicionar uma nova tarefa
-function addTask(e) {
+function handleAddTaskEvent(e) {
     e.preventDefault();
     
     try {
@@ -1680,4 +1856,391 @@ function deleteTask(taskId) {
         showErrorNotification('Ocorreu um erro ao excluir a tarefa.');
         return false;
     }
-} 
+}
+
+// Função para alternar o estado de fixação de uma tarefa
+function toggleTaskPin(taskId) {
+    try {
+        // Verificar se window.tasks está inicializado
+        if (!window.tasks) {
+            console.error('window.tasks não está inicializado');
+            return false;
+        }
+        
+        // Buscar a tarefa em todas as categorias
+        let taskFound = false;
+        
+        Object.keys(window.tasks).forEach(category => {
+            const taskIndex = window.tasks[category].findIndex(task => task.id === taskId);
+            
+            if (taskIndex !== -1) {
+                const task = window.tasks[category][taskIndex];
+                // Inverter o estado de fixação
+                task.pinned = !task.pinned;
+                task.updatedAt = new Date().toISOString();
+                
+                // Atualizar a tarefa na lista
+                window.tasks[category][taskIndex] = task;
+                taskFound = true;
+                
+                // Mostrar notificação
+                if (task.pinned) {
+                    showSuccessNotification('Tarefa fixada com sucesso!');
+                } else {
+                    showSuccessNotification('Tarefa desafixada com sucesso!');
+                }
+            }
+        });
+        
+        if (taskFound) {
+            // Salvar as tarefas no localStorage
+            saveTasks();
+            
+            // Atualizar a lista de tarefas
+            renderTasks();
+            
+            return true;
+        } else {
+            console.error('Tarefa não encontrada:', taskId);
+            return false;
+        }
+    } catch (error) {
+        console.error('Erro ao alternar fixação da tarefa:', error);
+        showErrorNotification('Ocorreu um erro ao atualizar a tarefa.');
+        return false;
+    }
+}
+
+// Configurar os filtros de período e status
+function setupFilters() {
+    // Filtro de período
+    document.querySelectorAll('input[name="period-filter"]').forEach(radio => {
+        radio.addEventListener('change', () => {
+            console.log('Filtro de período alterado para:', radio.value);
+            renderTasks(); // Re-renderizar tarefas com o novo filtro
+        });
+    });
+    
+    // Filtro de status
+    document.querySelectorAll('input[name="status-filter"]').forEach(radio => {
+        radio.addEventListener('change', () => {
+            console.log('Filtro de status alterado para:', radio.value);
+            renderTasks(); // Re-renderizar tarefas com o novo filtro
+        });
+    });
+}
+
+// Função para aplicar filtro de status programaticamente
+function performFilterByStatus(status) {
+    const statusRadio = document.querySelector(`input[name="status-filter"][value="${status}"]`);
+    if (statusRadio) {
+        statusRadio.checked = true;
+        renderTasks();
+    }
+}
+
+// Função para carregar tarefas (estava faltando)
+async function loadTasks() {
+    try {
+        console.log('Iniciando carregamento de tarefas...');
+        
+        // Mostrar estado de carregamento
+        showLoadingState();
+        
+        // Tentar obter as tarefas do Supabase
+        let tasksLoaded = false;
+        
+        try {
+            // Verificar conexão com Supabase
+            const isConnected = await checkSupabaseConnection();
+            
+            if (isConnected) {
+                console.log('Conectado ao Supabase, buscando tarefas...');
+                const fetchedTasks = await fetchTasks();
+                if (fetchedTasks) {
+                    window.tasks = fetchedTasks;
+                    
+                    // Guardar uma cópia no localStorage para backup
+                    localStorage.setItem('tasks', JSON.stringify(window.tasks));
+                    
+                    console.log('Tarefas carregadas do Supabase com sucesso:', 
+                        Object.keys(window.tasks).reduce((total, key) => total + window.tasks[key].length, 0), 
+                        'tarefas encontradas');
+                    
+                    tasksLoaded = true;
+                    showSuccessNotification('Tarefas carregadas do servidor com sucesso!');
+                }
+            } else {
+                console.error('Não foi possível conectar ao Supabase');
+                throw new Error('Erro de conexão com o Supabase');
+            }
+        } catch (error) {
+            console.error('Erro ao carregar tarefas do Supabase:', error);
+            showWarningNotification('Não foi possível conectar ao servidor. Usando dados locais.');
+        }
+        
+        // Se não conseguiu carregar do Supabase, tentar do localStorage
+        if (!tasksLoaded) {
+            console.log('Tentando carregar tarefas do localStorage...');
+            const storedTasks = localStorage.getItem('tasks');
+            
+            if (storedTasks) {
+                try {
+                    window.tasks = JSON.parse(storedTasks);
+                    console.log('Tarefas carregadas do localStorage com sucesso:', 
+                        Object.keys(window.tasks).reduce((total, key) => total + window.tasks[key].length, 0), 
+                        'tarefas encontradas');
+                    
+                    tasksLoaded = true;
+                } catch (e) {
+                    console.error('Erro ao parsear tarefas do localStorage:', e);
+                }
+            }
+        }
+        
+        // Se ainda não conseguiu carregar, inicializar vazio
+        if (!tasksLoaded) {
+            console.log('Inicializando lista de tarefas vazia');
+            window.tasks = {
+                day: [],
+                week: [],
+                month: [],
+                year: []
+            };
+        }
+    } catch (error) {
+        console.error('Erro geral ao carregar tarefas:', error);
+        showErrorNotification('Erro ao carregar tarefas. Verifique o console para mais detalhes.');
+        
+        // Garantir que window.tasks exista mesmo em caso de erro
+        window.tasks = window.tasks || {
+            day: [],
+            week: [],
+            month: [],
+            year: []
+        };
+    } finally {
+        // Ocultar estado de carregamento, independentemente do resultado
+        hideLoadingState();
+        
+        // Renderizar as tarefas, mesmo que esteja vazio
+        renderTasks();
+    }
+}
+
+// Função para configurar os ouvintes de eventos de formulário
+function setupTaskForm() {
+    const taskForm = document.getElementById('add-task-form');
+    const taskTitle = document.getElementById('task-title');
+    const taskDescription = document.getElementById('task-description');
+    const taskStartDate = document.getElementById('task-start-date');
+    const taskEndDate = document.getElementById('task-end-date');
+    const taskCategory = document.getElementById('task-category');
+    
+    // Preencher a data atual
+    if (taskStartDate) {
+        const now = new Date();
+        const yyyy = now.getFullYear();
+        const mm = String(now.getMonth() + 1).padStart(2, '0');
+        const dd = String(now.getDate()).padStart(2, '0');
+        const today = `${yyyy}-${mm}-${dd}`;
+        
+        taskStartDate.value = today;
+        
+        // Definir a data final como 1 semana a partir de hoje por padrão
+        if (taskEndDate) {
+            const nextWeek = new Date();
+            nextWeek.setDate(now.getDate() + 7);
+            
+            const yyyy2 = nextWeek.getFullYear();
+            const mm2 = String(nextWeek.getMonth() + 1).padStart(2, '0');
+            const dd2 = String(nextWeek.getDate()).padStart(2, '0');
+            const nextWeekFormatted = `${yyyy2}-${mm2}-${dd2}`;
+            
+            taskEndDate.value = nextWeekFormatted;
+        }
+    }
+    
+    // Eventos de formulário
+    if (taskForm) {
+        // Remover manipulador antigo para evitar duplicação
+        taskForm.removeEventListener('submit', handleAddTaskEvent);
+        
+        // Adicionar novo manipulador de eventos
+        taskForm.addEventListener('submit', handleAddTaskEvent);
+    }
+}
+
+// Função para adicionar uma nova tarefa
+async function addNewTask(newTask) {
+    try {
+        // Primeiro tentar salvar no Supabase
+        let savedTask = null;
+        try {
+            // Aqui chamamos a função do supabase-config.js
+            savedTask = await addTask(newTask);
+            console.log('Tarefa salva no Supabase:', savedTask);
+        } catch (error) {
+            console.error('Erro ao salvar no Supabase:', error);
+        }
+        
+        // Se falhou no Supabase, criar com ID local
+        if (!savedTask) {
+            savedTask = { ...newTask, id: 'local_' + Date.now() };
+            console.log('Criando tarefa com ID local:', savedTask);
+            showWarningNotification('Tarefa salva apenas localmente. A sincronização falhará.');
+        } else {
+            showSuccessNotification('Tarefa adicionada com sucesso!');
+        }
+        
+        // Adicionar ao estado local e salvar
+        if (!window.tasks[savedTask.category]) {
+            window.tasks[savedTask.category] = [];
+        }
+        
+        window.tasks[savedTask.category].push(savedTask);
+        saveTasks();
+        
+        // Atualizar a UI
+        renderTasks();
+        
+    } catch (error) {
+        console.error('Erro ao adicionar tarefa:', error);
+        showErrorNotification('Erro ao adicionar tarefa');
+    }
+}
+
+// Função para atualizar uma tarefa existente
+async function updateExistingTask(taskId, updatedData) {
+    try {
+        let taskFound = false;
+        let originalCategory = null;
+        
+        // Encontrar a tarefa e sua categoria
+        Object.keys(window.tasks).forEach(category => {
+            const taskIndex = window.tasks[category].findIndex(t => t.id === taskId);
+            if (taskIndex !== -1) {
+                taskFound = true;
+                originalCategory = category;
+            }
+        });
+        
+        if (!taskFound) {
+            console.error('Tarefa não encontrada para atualização:', taskId);
+            showErrorNotification('Tarefa não encontrada');
+            return;
+        }
+        
+        // Tentar atualizar no Supabase
+        try {
+            await updateTask(taskId, updatedData);
+            console.log('Tarefa atualizada no Supabase');
+        } catch (error) {
+            console.error('Erro ao atualizar no Supabase:', error);
+            showWarningNotification('Atualização local bem-sucedida, mas falhou no servidor');
+        }
+        
+        // Atualizar localmente
+        const taskIndex = window.tasks[originalCategory].findIndex(t => t.id === taskId);
+        
+        // Se a categoria mudou, mover a tarefa
+        if (originalCategory !== updatedData.category) {
+            // Remover da categoria original
+            const taskToMove = window.tasks[originalCategory].splice(taskIndex, 1)[0];
+            
+            // Atualizar dados da tarefa
+            const updatedTask = { ...taskToMove, ...updatedData };
+            
+            // Adicionar na nova categoria
+            if (!window.tasks[updatedData.category]) {
+                window.tasks[updatedData.category] = [];
+            }
+            window.tasks[updatedData.category].push(updatedTask);
+        } else {
+            // Atualizar na mesma categoria
+            window.tasks[originalCategory][taskIndex] = { 
+                ...window.tasks[originalCategory][taskIndex], 
+                ...updatedData 
+            };
+        }
+        
+        // Salvar e atualizar UI
+        saveTasks();
+        renderTasks();
+        
+        showSuccessNotification('Tarefa atualizada com sucesso!');
+        
+    } catch (error) {
+        console.error('Erro ao atualizar tarefa:', error);
+        showErrorNotification('Erro ao atualizar tarefa');
+    }
+}
+
+// Função para configurar os event listeners
+function setupEventListeners() {
+    // Limpar a variável global para não duplicar os event listeners
+    if (window.eventListenersSet) return;
+    
+    // Evento para novo botão de tarefa
+    if (newTaskBtn) {
+        newTaskBtn.addEventListener('click', prepareNewTask);
+    }
+    
+    // Eventos para fechar o modal
+    if (closeModalBtn) {
+        closeModalBtn.addEventListener('click', closeModal);
+    }
+    
+    if (cancelBtn) {
+        cancelBtn.addEventListener('click', closeModal);
+    }
+    
+    // Evento para o modal de fundo
+    if (taskFormModal) {
+        taskFormModal.addEventListener('click', (e) => {
+            if (e.target === taskFormModal) closeModal();
+        });
+    }
+    
+    // Configurar o formulário com o manipulador de evento correto
+    const addTaskForm = document.getElementById('add-task-form');
+    if (addTaskForm) {
+        // Remover qualquer event listener antigo e adicionar o novo
+        addTaskForm.removeEventListener('submit', addTask); // Remover a referência antiga
+        addTaskForm.addEventListener('submit', handleAddTaskEvent); // Adicionar a referência nova
+    }
+    
+    // Eventos de pesquisa
+    if (searchInput) {
+        searchInput.addEventListener('input', (e) => {
+            filterTasks(e.target.value);
+        });
+    }
+    
+    // Marcar que os event listeners foram configurados
+    window.eventListenersSet = true;
+}
+
+// Inicializar a aplicação
+document.addEventListener('DOMContentLoaded', function() {
+    // Carregar tarefas
+    loadTasks();
+    
+    // Configurar navegação
+    setupNavigation();
+    
+    // Configurar formulário de tarefas
+    setupTaskForm();
+    
+    // Configurar badges de status
+    setupStatusBadges();
+    
+    // Configurar filtros
+    setupFilters();
+    
+    // Renderizar tarefas iniciais
+    renderTasks();
+    
+    // Outras inicializações
+    setupEventListeners();
+}); 

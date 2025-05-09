@@ -171,40 +171,98 @@
                         Nova Tarefa
                     </button>
                 </div>
-
-                <div class="task-columns">
-                    <div class="task-column" id="day">
-                        <div class="column-header">
-                            <i class="fas fa-sun"></i>
-                            <h3>Dia</h3>
-                            <span class="task-count">0</span>
+                
+                <div class="task-filter-section">
+                    <div class="period-selector">
+                        <label class="period-label">Filtrar por período:</label>
+                        <div class="period-options">
+                            <label class="period-option">
+                                <input type="radio" name="period-filter" value="all" checked>
+                                <span class="period-badge">Todos</span>
+                            </label>
+                            <label class="period-option">
+                                <input type="radio" name="period-filter" value="day">
+                                <span class="period-badge">Dia</span>
+                            </label>
+                            <label class="period-option">
+                                <input type="radio" name="period-filter" value="week">
+                                <span class="period-badge">Semana</span>
+                            </label>
+                            <label class="period-option">
+                                <input type="radio" name="period-filter" value="month">
+                                <span class="period-badge">Mês</span>
+                            </label>
+                            <label class="period-option">
+                                <input type="radio" name="period-filter" value="year">
+                                <span class="period-badge">Ano</span>
+                            </label>
                         </div>
-                        <div class="task-list"></div>
                     </div>
-                    <div class="task-column" id="week">
-                        <div class="column-header">
-                            <i class="fas fa-calendar-week"></i>
-                            <h3>Semana</h3>
-                            <span class="task-count">0</span>
+                    
+                    <div class="status-filter">
+                        <label class="status-label">Filtrar por status:</label>
+                        <div class="status-options">
+                            <label class="status-option">
+                                <input type="radio" name="status-filter" value="all" checked>
+                                <span class="status-badge all">
+                                    <i class="fas fa-list"></i>
+                                    Todas
+                                </span>
+                            </label>
+                            <label class="status-option">
+                                <input type="radio" name="status-filter" value="pending">
+                                <span class="status-badge pending">
+                                    <i class="fas fa-clock"></i>
+                                    Em andamento
+                                </span>
+                            </label>
+                            <label class="status-option">
+                                <input type="radio" name="status-filter" value="completed">
+                                <span class="status-badge completed">
+                                    <i class="fas fa-check"></i>
+                                    Concluído
+                                </span>
+                            </label>
+                            <label class="status-option">
+                                <input type="radio" name="status-filter" value="finished">
+                                <span class="status-badge finished">
+                                    <i class="fas fa-flag-checkered"></i>
+                                    Finalizado
+                                </span>
+                            </label>
+                            <label class="status-option">
+                                <input type="radio" name="status-filter" value="late">
+                                <span class="status-badge late">
+                                    <i class="fas fa-exclamation-triangle"></i>
+                                    Em atraso
+                                </span>
+                            </label>
                         </div>
-                        <div class="task-list"></div>
                     </div>
-                    <div class="task-column" id="month">
-                        <div class="column-header">
-                            <i class="fas fa-calendar-alt"></i>
-                            <h3>Mês</h3>
-                            <span class="task-count">0</span>
-                        </div>
-                        <div class="task-list"></div>
-                    </div>
-                    <div class="task-column" id="year">
-                        <div class="column-header">
-                            <i class="fas fa-calendar"></i>
-                            <h3>Ano</h3>
-                            <span class="task-count">0</span>
-                        </div>
-                        <div class="task-list"></div>
-                    </div>
+                </div>
+                
+                <div class="task-table-container">
+                    <table class="task-table">
+                        <thead>
+                            <tr>
+                                <th>Período</th>
+                                <th>Nome da Tarefa</th>
+                                <th>Data de Início</th>
+                                <th>Data Final</th>
+                                <th>Status</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="task-table-body">
+                            <!-- As tarefas serão renderizadas aqui dinamicamente -->
+                        </tbody>
+                    </table>
+                </div>
+                
+                <!-- Container para mensagem quando não houver tarefas -->
+                <div id="no-tasks-message" class="no-tasks-message" style="display: none;">
+                    <i class="fas fa-inbox"></i>
+                    <p>Nenhuma tarefa encontrada</p>
                 </div>
             </div>
             

@@ -1855,4 +1855,348 @@ body {
 /* Garantir que apenas o grid mais recente seja exibido */
 .calendar-container .calendar-grid:not(:last-child) {
     display: none !important;
+}
+
+/* Filtros de tarefas */
+.task-filter-section {
+    display: flex;
+    gap: 24px;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+}
+
+.period-selector,
+.status-filter {
+    background-color: var(--surface-color);
+    border-radius: var(--border-radius);
+    padding: 16px;
+    box-shadow: var(--shadow-sm);
+}
+
+.period-label,
+.status-label {
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 12px;
+    display: block;
+    color: var(--text-secondary);
+}
+
+.period-options,
+.status-options {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.period-option,
+.status-option {
+    cursor: pointer;
+}
+
+.period-option input[type="radio"],
+.status-option input[type="radio"] {
+    display: none;
+}
+
+.period-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border-radius: 20px;
+    font-size: 14px;
+    font-weight: 500;
+    background-color: var(--background-color);
+    color: var(--text-secondary);
+    transition: all 0.2s ease;
+}
+
+.period-option input[type="radio"]:checked + .period-badge {
+    background-color: var(--primary-color);
+    color: white;
+}
+
+/* Tabela de tarefas */
+.task-table-container {
+    background-color: var(--surface-color);
+    border-radius: var(--border-radius);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+    margin-bottom: 24px;
+}
+
+.task-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.task-table th {
+    background-color: var(--primary-color);
+    color: white;
+    text-align: left;
+    padding: 16px;
+    font-weight: 600;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.task-table th:first-child {
+    border-top-left-radius: var(--border-radius);
+}
+
+.task-table th:last-child {
+    border-top-right-radius: var(--border-radius);
+}
+
+.task-row {
+    border-bottom: 1px solid var(--border-color);
+    transition: all 0.3s ease;
+    position: relative;
+}
+
+.task-row:hover {
+    background-color: var(--background-color);
+}
+
+.task-row td {
+    padding: 16px;
+    vertical-align: middle;
+}
+
+.task-row.pinned {
+    background-color: rgba(124, 58, 237, 0.05);
+    position: relative;
+}
+
+.task-row.pinned::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 4px;
+    background-color: var(--primary-color);
+}
+
+/* Status da tarefa na tabela - Melhorar a aplicação das bordas */
+.task-row.status-pending,
+.task-row.status-completed,
+.task-row.status-finished,
+.task-row.status-late {
+    border-left: 4px solid var(--border-color);
+}
+
+.task-row.status-pending {
+    border-left-color: var(--status-pending);
+}
+
+.task-row.status-completed {
+    border-left-color: var(--status-completed);
+}
+
+.task-row.status-finished {
+    border-left-color: var(--status-finished);
+}
+
+.task-row.status-late {
+    border-left-color: var(--status-late);
+}
+
+.period-cell {
+    font-weight: 500;
+    color: var(--primary-color);
+    width: 100px;
+}
+
+.title-cell {
+    font-weight: 500;
+}
+
+.date-cell {
+    color: var(--text-secondary);
+    font-size: 14px;
+    white-space: nowrap;
+}
+
+.status-cell {
+    width: 150px;
+}
+
+.status-select {
+    width: 100%;
+    padding: 8px 12px;
+    border-radius: 20px;
+    border: 1px solid var(--border-color);
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%2364748b' viewBox='0 0 16 16'%3E%3Cpath fill-rule='evenodd' d='M8 11.5a.5.5 0 0 1-.5-.5v-6a.5.5 0 0 1 1 0v6a.5.5 0 0 1-.5.5z'/%3E%3Cpath fill-rule='evenodd' d='M5.354 8.5l2.646 2.646a.5.5 0 0 0 .708 0l2.646-2.646a.5.5 0 0 0-.708-.708L8 10.293 5.354 7.792a.5.5 0 1 0-.708.708z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.status-select:focus {
+    outline: none;
+    border-color: var(--primary-color);
+}
+
+.status-select.status-pending {
+    color: var(--status-pending);
+    border-color: var(--status-pending);
+    background-color: rgba(234, 179, 8, 0.1);
+}
+
+.status-select.status-completed {
+    color: var(--status-completed);
+    border-color: var(--status-completed);
+    background-color: rgba(16, 185, 129, 0.1);
+}
+
+.status-select.status-finished {
+    color: var(--status-finished);
+    border-color: var(--status-finished);
+    background-color: rgba(59, 130, 246, 0.1);
+}
+
+.status-select.status-late {
+    color: var(--status-late);
+    border-color: var(--status-late);
+    background-color: rgba(239, 68, 68, 0.1);
+}
+
+.actions-cell {
+    width: 200px;
+    text-align: right;
+    white-space: nowrap;
+}
+
+.actions-cell button {
+    background: none;
+    border: none;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    margin-left: 4px;
+}
+
+.actions-cell button:hover {
+    background-color: var(--background-color);
+    color: var(--primary-color);
+}
+
+.edit-button {
+    color: var(--primary-color) !important;
+}
+
+.comments-button {
+    color: var(--secondary-color) !important;
+    position: relative;
+}
+
+.pin-button i.pinned {
+    transform: rotate(45deg);
+    color: var(--primary-color) !important;
+}
+
+.delete-button:hover {
+    color: var(--status-late) !important;
+}
+
+/* Comentários e contadores */
+.comments-count {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    background-color: var(--primary-color);
+    color: white;
+    font-size: 10px;
+    font-weight: 600;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Mensagem de "Nenhuma tarefa" */
+.no-tasks-message {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 48px;
+    background-color: var(--surface-color);
+    border-radius: var(--border-radius);
+    color: var(--text-secondary);
+    margin-top: 24px;
+    box-shadow: var(--shadow-sm);
+}
+
+.no-tasks-message i {
+    font-size: 48px;
+    margin-bottom: 16px;
+    opacity: 0.5;
+}
+
+/* Modo escuro para a tabela */
+.dark-theme .task-table-container,
+.dark-theme .task-table td,
+.dark-theme .period-selector,
+.dark-theme .status-filter {
+    background-color: var(--surface-color);
+}
+
+.dark-theme .task-row:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+.dark-theme .task-table th {
+    background-color: var(--primary-dark);
+}
+
+.dark-theme .actions-cell button:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+.dark-theme .period-badge {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Responsividade */
+@media (max-width: 1024px) {
+    .task-table {
+        font-size: 14px;
+    }
+    
+    .task-row td {
+        padding: 12px 8px;
+    }
+    
+    .actions-cell button {
+        width: 32px;
+        height: 32px;
+    }
+}
+
+@media (max-width: 768px) {
+    .task-filter-section {
+        flex-direction: column;
+    }
+    
+    .date-cell {
+        display: none;
+    }
+    
+    .actions-cell {
+        width: auto;
+    }
 } 

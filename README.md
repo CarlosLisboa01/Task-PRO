@@ -105,3 +105,58 @@ Para servir a aplicação em um ambiente de produção:
 1. É recomendado configurar variáveis de ambiente para as chaves do Supabase
 2. Considere implementar autenticação de usuários para proteger os dados
 3. Configure CORS adequadamente no Supabase para permitir requisições do seu domínio 
+
+## Resolvendo problemas de conexão com o Supabase
+
+Se você estiver enfrentando problemas de conexão com o Supabase, siga estas etapas para resolver:
+
+### 1. Verificar endereço do Supabase
+
+O aplicativo TaskPRO foi configurado para acessar um banco de dados Supabase específico. Se a URL ou a chave API do Supabase estiver incorreta, você enfrentará erros de conexão.
+
+No arquivo `supabase-config.js`, verifique:
+
+```javascript
+// As URLs e chave de API devem estar corretas
+const SUPABASE_URL = 'https://oqjhdbvzjtvqznmnbsvk.supabase.co'; 
+const SUPABASE_API_URL = 'https://oqjhdbvzjtvqznmnbsvk.supabase.co/rest/v1';
+const SUPABASE_KEY = 'sua-chave-api'; 
+```
+
+### 2. Configurar o banco de dados Supabase
+
+Se você quiser usar seu próprio banco de dados Supabase:
+
+1. Acesse [supabase.com](https://supabase.com/) e crie uma conta
+2. Crie um novo projeto
+3. Crie as seguintes tabelas:
+   - `tasks`
+     - id (uuid, primary key)
+     - text (text)
+     - category (text)
+     - startdate (timestamp with time zone)
+     - enddate (timestamp with time zone)
+     - status (text)
+     - pinned (boolean)
+     - created_at (timestamp with time zone)
+   - `task_comments`
+     - id (uuid, primary key)
+     - task_id (uuid, foreign key referencing tasks.id)
+     - text (text)
+     - created_at (timestamp with time zone)
+
+4. Configure as permissões de acesso para permitir operações anônimas
+5. Atualize as constantes `SUPABASE_URL` e `SUPABASE_KEY` no arquivo `supabase-config.js`
+
+### 3. Modo offline (localStorage)
+
+O TaskPRO foi projetado para funcionar mesmo sem conexão com o Supabase. Todas as tarefas são automaticamente salvas no localStorage do navegador como fallback, para que você não perca seus dados. Se você vir mensagens de erro relacionadas ao Supabase, mas as funcionalidades continuarem funcionando, seus dados estão sendo salvos localmente.
+
+### 4. Debugando problemas de conexão
+
+Para verificar se há problemas de conexão:
+
+1. Abra o console do navegador (F12)
+2. Procure por mensagens de erro relacionadas ao Supabase
+3. Verifique se você pode acessar o URL do Supabase diretamente no navegador
+4. Se você estiver em um ambiente com firewall ou proxy, certifique-se de que as requisições para o domínio `supabase.co` estejam permitidas 

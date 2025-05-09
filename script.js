@@ -466,11 +466,19 @@ function isTaskInProgress(task) {
 
 // Função para atualizar status de tarefas
 async function updateTasksStatus() {
+    console.log('Verificando status de tarefas automaticamente...');
     let updated = false;
     let updatedTasks = [];
+    let completedTasksChecked = 0;
     
-    Object.keys(tasks).forEach(category => {
-        tasks[category].forEach(task => {
+    // Verificar se window.tasks está inicializado
+    if (!window.tasks) {
+        console.error('window.tasks não está inicializado ao verificar status');
+        return;
+    }
+    
+    Object.keys(window.tasks).forEach(category => {
+        window.tasks[category].forEach(task => {
             let newStatus = task.status;
             
             // Verificar tarefas com status diferente de 'finished'
@@ -478,15 +486,21 @@ async function updateTasksStatus() {
                 
                 // Lógica para tarefas concluídas: mudar para finalizado após 2 horas
                 if (task.status === 'completed' && task.completedAt) {
+                    completedTasksChecked++;
                     const completedTime = new Date(task.completedAt).getTime();
                     const currentTime = new Date().getTime();
                     const hoursElapsed = (currentTime - completedTime) / (1000 * 60 * 60);
+                    
+                    console.log(`Verificando tarefa concluída: "${task.text}" - Concluída há ${hoursElapsed.toFixed(2)} horas`);
                     
                     // Se passaram 2 horas ou mais desde a conclusão
                     if (hoursElapsed >= 2) {
                         newStatus = 'finished';
                         console.log(`Tarefa "${task.text}" movida para finalizado após ${hoursElapsed.toFixed(2)} horas de conclusão`);
                         updated = true;
+                        
+                        // Adicionar notificação para o usuário
+                        showInfoNotification(`Tarefa "${task.text}" foi finalizada automaticamente após ${Math.floor(hoursElapsed)} horas de conclusão`);
                     }
                 }
                 // Lógica para tarefas em atraso ou em andamento
@@ -523,21 +537,28 @@ async function updateTasksStatus() {
         });
     });
     
+    console.log(`Verificação concluída: ${completedTasksChecked} tarefas concluídas verificadas, ${updatedTasks.length} atualizadas`);
+    
     if (updated) {
         // Atualizar no localStorage
         saveTasks();
         
-        // Atualizar no Supabase (em paralelo)
-        try {
-            updatedTasks.forEach(async task => {
-                await window.supabaseApi.updateTask(task.id, task);
-            });
-        } catch (error) {
-            console.error('Erro ao atualizar status das tarefas no Supabase:', error);
-            showErrorNotification('Erro ao atualizar status das tarefas no servidor');
+        // Atualizar a interface
+        renderTasks();
+        
+        // Atualizar os gráficos
+        if (typeof updateAnalytics === 'function') {
+            console.log('Atualizando análises após mudança automática de status');
+            updateAnalytics();
         }
         
-        renderTasks();
+        // Atualizar o calendário
+        if (typeof loadCalendarTasks === 'function') {
+            console.log('Atualizando calendário após mudança automática de status');
+            loadCalendarTasks();
+        }
+        
+        console.log(`${updatedTasks.length} tarefas tiveram status atualizado automaticamente`);
     }
 }
 
@@ -1783,11 +1804,13 @@ function updateTaskStatus(taskId, newStatus) {
                 if (newStatus === 'completed' && oldStatus !== 'completed') {
                     task.completedAt = new Date().toISOString();
                     console.log(`Tarefa "${task.text}" marcada como concluída em ${new Date().toLocaleString()}`);
+                    console.log(`Timestamp de conclusão registrado: ${task.completedAt}`);
                 }
                 
                 // Se a tarefa foi finalizada, registrar a data de finalização
                 if (newStatus === 'finished' && oldStatus !== 'finished') {
                     task.finishedAt = new Date().toISOString();
+                    console.log(`Tarefa "${task.text}" marcada como finalizada em ${new Date().toLocaleString()}`);
                 }
                 
                 // Atualizar a tarefa na lista
@@ -2419,6 +2442,8 @@ function setupEventListeners() {
 
 // Inicializar a aplicação
 document.addEventListener('DOMContentLoaded', function() {
+    console.log('Inicializando a aplicação TaskPRO...');
+    
     // Carregar tarefas
     loadTasks();
     
@@ -2440,7 +2465,8 @@ document.addEventListener('DOMContentLoaded', function() {
     // Outras inicializações
     setupEventListeners();
     
-    // Iniciar verificação de status das tarefas
+    // Executar verificação imediata de status das tarefas
+    console.log('Executando verificação inicial de status das tarefas...');
     updateTasksStatus();
     
     // Configurar intervalos para atualização periódica (substitui o setInterval anterior)
@@ -2449,7 +2475,8 @@ document.addEventListener('DOMContentLoaded', function() {
         clearInterval(window._statusUpdateInterval);
     }
     
-    window._statusUpdateInterval = setInterval(updateTasksStatus, 60 * 1000);
+    window._statusUpdateInterval = setInterval(updateTasksStatus, 60 * 1000); // A cada minuto
+    console.log('Verificação automática de status configurada para execução a cada minuto');
     
     // Configurar sincronização automática com o servidor a cada 10 Minutos
     if (window._serverSyncInterval) {
@@ -2470,8 +2497,63 @@ document.addEventListener('DOMContentLoaded', function() {
             syncTasksWithServer().catch(error => {
                 console.error('Erro na sincronização ao retornar à página:', error);
             });
+            
+            // Também verificar status das tarefas quando a página volta a ficar visível
+            console.log('Verificando status das tarefas após retorno à página...');
+            updateTasksStatus();
         }
     });
     
-    console.log('Verificação periódica de status de tarefas e sincronização automática iniciadas');
+    console.log('Aplicação TaskPRO inicializada com sucesso!');
 }); 
+
+// Função para simulação de teste - marcar uma tarefa como concluída há X horas (para teste)
+function simulateCompletedTask(taskId, hoursAgo = 2) {
+    try {
+        if (!window.tasks) {
+            console.error('window.tasks não está inicializado');
+            return false;
+        }
+        
+        let taskFound = false;
+        
+        Object.keys(window.tasks).forEach(category => {
+            const taskIndex = window.tasks[category].findIndex(task => task.id === taskId);
+            
+            if (taskIndex !== -1) {
+                const task = window.tasks[category][taskIndex];
+                
+                // Definir status como completed
+                task.status = 'completed';
+                
+                // Definir completedAt para X horas atrás
+                const hoursInMs = hoursAgo * 60 * 60 * 1000;
+                const completedTime = new Date(new Date().getTime() - hoursInMs);
+                task.completedAt = completedTime.toISOString();
+                
+                console.log(`Tarefa "${task.text}" simulada como concluída há ${hoursAgo} horas (${completedTime.toLocaleString()})`);
+                
+                // Atualizar a tarefa
+                window.tasks[category][taskIndex] = task;
+                taskFound = true;
+                
+                // Salvar no localStorage
+                saveTasks();
+                
+                // Renderizar tarefas
+                renderTasks();
+                
+                // Exibir notificação
+                showInfoNotification(`Tarefa "${task.text}" simulada como concluída há ${hoursAgo} horas. Aguarde a verificação automática.`);
+            }
+        });
+        
+        return taskFound;
+    } catch (error) {
+        console.error('Erro ao simular tarefa concluída:', error);
+        return false;
+    }
+}
+
+// Console helper para facilitar teste no console do navegador
+window.simulateCompletedTask = simulateCompletedTask;

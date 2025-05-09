@@ -423,4 +423,16 @@ async function deleteTaskComment(commentId) {
         console.error('Erro ao excluir comentário:', error);
         return false;
     }
-} 
+}
+
+// Criar um namespace para as funções da API do Supabase
+window.supabaseApi = {
+    fetchTasks,
+    addTask,
+    updateTask,
+    deleteTask,
+    checkSupabaseConnection,
+    fetchTaskComments,
+    addTaskComment,
+    deleteTaskComment
+}; 

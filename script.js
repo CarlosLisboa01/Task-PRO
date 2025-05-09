@@ -471,26 +471,52 @@ async function updateTasksStatus() {
     
     Object.keys(tasks).forEach(category => {
         tasks[category].forEach(task => {
-            if (task.status !== 'completed' && task.status !== 'finished') {
-                const wasLate = task.status === 'late';
-                const isLate = isTaskLate(task);
-                const inProgress = isTaskInProgress(task);
+            let newStatus = task.status;
+            
+            // Verificar tarefas com status diferente de 'finished'
+            if (task.status !== 'finished') {
                 
-                let newStatus = task.status;
-                
-                if (isLate && !wasLate) {
-                    newStatus = 'late';
-                    updated = true;
-                } else if (inProgress && task.status !== 'pending') {
-                    newStatus = 'pending';
-                    updated = true;
+                // Lógica para tarefas concluídas: mudar para finalizado após 2 horas
+                if (task.status === 'completed' && task.completedAt) {
+                    const completedTime = new Date(task.completedAt).getTime();
+                    const currentTime = new Date().getTime();
+                    const hoursElapsed = (currentTime - completedTime) / (1000 * 60 * 60);
+                    
+                    // Se passaram 2 horas ou mais desde a conclusão
+                    if (hoursElapsed >= 2) {
+                        newStatus = 'finished';
+                        console.log(`Tarefa "${task.text}" movida para finalizado após ${hoursElapsed.toFixed(2)} horas de conclusão`);
+                        updated = true;
+                    }
+                }
+                // Lógica para tarefas em atraso ou em andamento
+                else if (task.status !== 'completed') {
+                    const wasLate = task.status === 'late';
+                    const isLate = isTaskLate(task);
+                    const inProgress = isTaskInProgress(task);
+                    
+                    if (isLate && !wasLate) {
+                        newStatus = 'late';
+                        updated = true;
+                    } else if (inProgress && task.status !== 'pending') {
+                        newStatus = 'pending';
+                        updated = true;
+                    }
                 }
                 
+                // Atualizar status se mudou
                 if (newStatus !== task.status) {
                     task.status = newStatus;
+                    
+                    // Adicionar timestamp para finalizados
+                    if (newStatus === 'finished') {
+                        task.finishedAt = new Date().toISOString();
+                    }
+                    
                     updatedTasks.push({
                         id: task.id,
-                        status: newStatus
+                        status: newStatus,
+                        ...(newStatus === 'finished' ? { finishedAt: task.finishedAt } : {})
                     });
                 }
             }
@@ -504,7 +530,7 @@ async function updateTasksStatus() {
         // Atualizar no Supabase (em paralelo)
         try {
             updatedTasks.forEach(async task => {
-                await updateTask(task.id, { status: task.status });
+                await window.supabaseApi.updateTask(task.id, task);
             });
         } catch (error) {
             console.error('Erro ao atualizar status das tarefas no Supabase:', error);
@@ -915,7 +941,7 @@ function openEditTaskModal(task) {
                     
                     // Atualizar no Supabase
                     try {
-                        await updateTask(taskId, updatedTask);
+                        await window.supabaseApi.updateTask(taskId, updatedTask);
                     } catch (error) {
                         console.error('Erro ao atualizar tarefa no Supabase:', error);
                         showWarningNotification('Tarefa atualizada localmente, mas não no servidor.');
@@ -1009,7 +1035,7 @@ taskForm.addEventListener('submit', async (e) => {
             console.log("Enviando tarefa:", newTask);
             
             // Adicionar ao Supabase primeiro
-            const savedTask = await addTask(newTask);
+            const savedTask = await window.supabaseApi.addTask(newTask);
             
             if (savedTask) {
                 // Se bem-sucedido no Supabase, adiciona ao estado local
@@ -1058,7 +1084,7 @@ function hideButtonLoading(button) {
 }
 
 // Verificar status das tarefas periodicamente
-setInterval(updateTasksStatus, 1000 * 60); // Atualiza a cada minuto
+// setInterval(updateTasksStatus, 1000 * 60); // Atualiza a cada minuto -- removido para evitar duplicação
 
 // Adicionar estilos CSS para notificações, tema escuro e indicadores de carregamento
 const style = document.createElement('style');
@@ -1749,12 +1775,19 @@ function updateTaskStatus(taskId, newStatus) {
             
             if (taskIndex !== -1) {
                 const task = window.tasks[category][taskIndex];
+                const oldStatus = task.status;
                 task.status = newStatus;
                 task.updatedAt = new Date().toISOString();
                 
                 // Se a tarefa foi concluída, registrar a data de conclusão
-                if (newStatus === 'completed' || newStatus === 'finished') {
+                if (newStatus === 'completed' && oldStatus !== 'completed') {
                     task.completedAt = new Date().toISOString();
+                    console.log(`Tarefa "${task.text}" marcada como concluída em ${new Date().toLocaleString()}`);
+                }
+                
+                // Se a tarefa foi finalizada, registrar a data de finalização
+                if (newStatus === 'finished' && oldStatus !== 'finished') {
+                    task.finishedAt = new Date().toISOString();
                 }
                 
                 // Atualizar a tarefa na lista
@@ -1813,18 +1846,44 @@ function deleteTask(taskId) {
         
         // Buscar a tarefa em todas as categorias
         let taskFound = false;
+        let taskCategory = null;
+        let taskIndex = -1;
         
         Object.keys(window.tasks).forEach(category => {
-            const taskIndex = window.tasks[category].findIndex(task => task.id === taskId);
+            const index = window.tasks[category].findIndex(task => task.id === taskId);
             
-            if (taskIndex !== -1) {
-                // Remover a tarefa da lista
-                window.tasks[category].splice(taskIndex, 1);
+            if (index !== -1) {
+                // Encontramos a tarefa
                 taskFound = true;
+                taskCategory = category;
+                taskIndex = index;
             }
         });
         
         if (taskFound) {
+            // Primeiro tentar excluir no Supabase
+            (async () => {
+                try {
+                    console.log(`Excluindo tarefa ${taskId} do Supabase...`);
+                    // Aqui chamamos a função do supabase-config.js, usando seu namespace
+                    const success = await window.supabaseApi.deleteTask(taskId);
+                    
+                    if (success) {
+                        console.log(`Tarefa ${taskId} excluída com sucesso do Supabase.`);
+                    } else {
+                        console.error(`Falha ao excluir tarefa ${taskId} do Supabase.`);
+                        showWarningNotification('Tarefa excluída localmente, mas pode permanecer no servidor.');
+                    }
+                } catch (error) {
+                    console.error('Erro na exclusão do Supabase:', error);
+                    showWarningNotification('Tarefa excluída localmente, mas pode permanecer no servidor.');
+                }
+            })();
+            
+            // Independentemente do resultado do Supabase, remover do estado local
+            // Remover a tarefa da lista
+            window.tasks[taskCategory].splice(taskIndex, 1);
+            
             // Salvar as tarefas no localStorage
             saveTasks();
             
@@ -1856,6 +1915,117 @@ function deleteTask(taskId) {
         showErrorNotification('Ocorreu um erro ao excluir a tarefa.');
         return false;
     }
+}
+
+// Função para forçar a sincronização com o servidor
+async function syncTasksWithServer() {
+    try {
+        console.log('Iniciando sincronização com o servidor...');
+        showInfoNotification('Sincronizando com o servidor...');
+        
+        // Verificar conexão com Supabase
+        const isConnected = await window.supabaseApi.checkSupabaseConnection();
+        
+        if (!isConnected) {
+            console.error('Não foi possível conectar ao Supabase para sincronização');
+            showErrorNotification('Falha na conexão com o servidor. Tente novamente mais tarde.');
+            return false;
+        }
+        
+        // Obter tarefas do servidor
+        console.log('Buscando tarefas do servidor...');
+        const serverTasks = await window.supabaseApi.fetchTasks();
+        
+        if (!serverTasks) {
+            console.error('Falha ao buscar tarefas do servidor');
+            showErrorNotification('Falha ao sincronizar com o servidor');
+            return false;
+        }
+        
+        // Contar tarefas locais antes da sincronização
+        const localTasksCount = Object.keys(window.tasks).reduce((count, category) => {
+            return count + window.tasks[category].length;
+        }, 0);
+        
+        // Contar tarefas do servidor
+        const serverTasksCount = Object.keys(serverTasks).reduce((count, category) => {
+            return count + serverTasks[category].length;
+        }, 0);
+        
+        console.log(`Comparando tarefas - Local: ${localTasksCount}, Servidor: ${serverTasksCount}`);
+        
+        // Verificar diferenças
+        if (localTasksCount > serverTasksCount) {
+            console.log(`Detectadas potenciais exclusões no servidor (${localTasksCount - serverTasksCount} tarefas a menos)`);
+            
+            // Identificar IDs de tarefas locais
+            const localTaskIds = new Set();
+            Object.keys(window.tasks).forEach(category => {
+                window.tasks[category].forEach(task => {
+                    localTaskIds.add(task.id);
+                });
+            });
+            
+            // Identificar IDs de tarefas do servidor
+            const serverTaskIds = new Set();
+            Object.keys(serverTasks).forEach(category => {
+                serverTasks[category].forEach(task => {
+                    serverTaskIds.add(task.id);
+                });
+            });
+            
+            // Encontrar tarefas que existem localmente mas não no servidor
+            const removedTaskIds = Array.from(localTaskIds).filter(id => !serverTaskIds.has(id));
+            
+            if (removedTaskIds.length > 0) {
+                console.log(`Identificadas ${removedTaskIds.length} tarefas excluídas no servidor:`, removedTaskIds);
+                showWarningNotification(`${removedTaskIds.length} tarefas foram excluídas do servidor e serão removidas localmente`);
+            }
+        }
+        
+        // Atualizar o estado local com os dados do servidor
+        window.tasks = serverTasks;
+        
+        // Salvar no localStorage
+        localStorage.setItem('tasks', JSON.stringify(window.tasks));
+        
+        // Atualizar a interface
+        renderTasks();
+        
+        // Atualizar os gráficos
+        if (typeof updateAnalytics === 'function') {
+            updateAnalytics();
+        }
+        
+        // Atualizar o calendário
+        if (typeof loadCalendarTasks === 'function') {
+            loadCalendarTasks();
+        }
+        
+        console.log('Sincronização com o servidor concluída');
+        showSuccessNotification('Sincronização com o servidor concluída');
+        return true;
+    } catch (error) {
+        console.error('Erro durante a sincronização:', error);
+        showErrorNotification('Erro durante a sincronização com o servidor');
+        return false;
+    }
+}
+
+// Adicionar função de notificação informativa
+function showInfoNotification(message) {
+    const notification = document.createElement('div');
+    notification.className = 'notification info';
+    notification.innerHTML = `
+        <i class="fas fa-info-circle"></i>
+        ${message}
+    `;
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+        notification.style.opacity = '0';
+        setTimeout(() => notification.remove(), 300);
+    }, 3000);
 }
 
 // Função para alternar o estado de fixação de uma tarefa
@@ -1952,11 +2122,11 @@ async function loadTasks() {
         
         try {
             // Verificar conexão com Supabase
-            const isConnected = await checkSupabaseConnection();
+            const isConnected = await window.supabaseApi.checkSupabaseConnection();
             
             if (isConnected) {
                 console.log('Conectado ao Supabase, buscando tarefas...');
-                const fetchedTasks = await fetchTasks();
+                const fetchedTasks = await window.supabaseApi.fetchTasks();
                 if (fetchedTasks) {
                     window.tasks = fetchedTasks;
                     
@@ -2078,7 +2248,7 @@ async function addNewTask(newTask) {
         let savedTask = null;
         try {
             // Aqui chamamos a função do supabase-config.js
-            savedTask = await addTask(newTask);
+            savedTask = await window.supabaseApi.addTask(newTask);
             console.log('Tarefa salva no Supabase:', savedTask);
         } catch (error) {
             console.error('Erro ao salvar no Supabase:', error);
@@ -2133,7 +2303,7 @@ async function updateExistingTask(taskId, updatedData) {
         
         // Tentar atualizar no Supabase
         try {
-            await updateTask(taskId, updatedData);
+            await window.supabaseApi.updateTask(taskId, updatedData);
             console.log('Tarefa atualizada no Supabase');
         } catch (error) {
             console.error('Erro ao atualizar no Supabase:', error);
@@ -2217,6 +2387,32 @@ function setupEventListeners() {
         });
     }
     
+    // Adicionar botão de sincronização no cabeçalho
+    const headerActions = document.querySelector('.header-actions');
+    if (headerActions && !document.getElementById('sync-button')) {
+        const syncButton = document.createElement('button');
+        syncButton.id = 'sync-button';
+        syncButton.className = 'sync-button';
+        syncButton.innerHTML = '<i class="fas fa-sync-alt"></i>';
+        syncButton.title = 'Sincronizar com o servidor';
+        
+        syncButton.addEventListener('click', () => {
+            // Mostrar animação de rotação durante a sincronização
+            syncButton.classList.add('rotating');
+            
+            // Chamar a função de sincronização
+            syncTasksWithServer()
+                .finally(() => {
+                    // Remover a animação de rotação
+                    setTimeout(() => {
+                        syncButton.classList.remove('rotating');
+                    }, 500);
+                });
+        });
+        
+        headerActions.prepend(syncButton);
+    }
+    
     // Marcar que os event listeners foram configurados
     window.eventListenersSet = true;
 }
@@ -2243,4 +2439,39 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Outras inicializações
     setupEventListeners();
+    
+    // Iniciar verificação de status das tarefas
+    updateTasksStatus();
+    
+    // Configurar intervalos para atualização periódica (substitui o setInterval anterior)
+    // Verificar status a cada minuto
+    if (window._statusUpdateInterval) {
+        clearInterval(window._statusUpdateInterval);
+    }
+    
+    window._statusUpdateInterval = setInterval(updateTasksStatus, 60 * 1000);
+    
+    // Configurar sincronização automática com o servidor a cada 40 segundos
+    if (window._serverSyncInterval) {
+        clearInterval(window._serverSyncInterval);
+    }
+    
+    window._serverSyncInterval = setInterval(() => {
+        console.log('Executando sincronização automática com o servidor...');
+        syncTasksWithServer().catch(error => {
+            console.error('Erro na sincronização automática:', error);
+        });
+    }, 40 * 1000); // A cada 40 segundos
+    
+    // Sincronizar quando a página voltar a ficar visível
+    document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) {
+            console.log('Página voltou a ficar visível, sincronizando com o servidor...');
+            syncTasksWithServer().catch(error => {
+                console.error('Erro na sincronização ao retornar à página:', error);
+            });
+        }
+    });
+    
+    console.log('Verificação periódica de status de tarefas e sincronização automática iniciadas');
 }); 

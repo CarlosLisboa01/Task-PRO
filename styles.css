@@ -2199,4 +2199,62 @@ body {
     .actions-cell {
         width: auto;
     }
+}
+
+.notification.success {
+    background-color: #dcfce7;
+    color: #166534;
+}
+
+.notification.error {
+    background-color: #fee2e2;
+    color: #b91c1c;
+}
+
+.notification.warning {
+    background-color: #fef3c7;
+    color: #92400e;
+}
+
+.notification.info {
+    background-color: #e0f2fe;
+    color: #075985;
+}
+
+.notification i {
+    font-size: 20px;
+}
+
+/* Estilo para botão de sincronização */
+.sync-button {
+    background-color: transparent;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 1.1rem;
+    cursor: pointer;
+    padding: 0.5rem;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+    margin-right: 1rem;
+}
+
+.sync-button:hover {
+    background-color: rgba(124, 58, 237, 0.1);
+    color: var(--primary-color);
+}
+
+.sync-button.rotating i {
+    animation: rotate 1s linear infinite;
+}
+
+@keyframes rotate {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
 } 

@@ -2993,38 +2993,123 @@ function simulateCompletedTask(taskId, hoursAgo = 2) {
 // Console helper para facilitar teste no console do navegador
 window.simulateCompletedTask = simulateCompletedTask;
 
-// Controle de menu para dispositivos móveis
+// Controle de menu para dispositivos móveis e responsividade
 document.addEventListener('DOMContentLoaded', function() {
     const mobileMenuToggle = document.getElementById('mobile-menu-toggle');
     const sidebar = document.querySelector('.sidebar');
+    const mainContent = document.querySelector('.main-content');
     
-    // Verificar tamanho da tela e mostrar/esconder o botão de menu
-    function checkScreenSize() {
-        if (window.innerWidth <= 768) {
+    // Verificar tamanho da tela e orientação, e aplicar ajustes responsivos
+    function applyResponsiveAdjustments() {
+        const windowWidth = window.innerWidth;
+        const windowHeight = window.innerHeight;
+        const isLandscape = windowWidth > windowHeight;
+        
+        // Ajustes para dispositivos móveis
+        if (windowWidth <= 768) {
             mobileMenuToggle.style.display = 'flex';
+            
+            // Aplicar classes para layout mobile
+            document.body.classList.add('mobile-view');
+            
+            // Em dispositivos muito pequenos, fazer ajustes adicionais
+            if (windowWidth <= 480) {
+                document.body.classList.add('small-mobile-view');
+                
+                // Ajustes específicos para orientação
+                if (isLandscape) {
+                    document.body.classList.add('landscape-view');
+                    document.body.classList.remove('portrait-view');
+                } else {
+                    document.body.classList.add('portrait-view');
+                    document.body.classList.remove('landscape-view');
+                }
+            } else {
+                document.body.classList.remove('small-mobile-view');
+            }
         } else {
+            // Desktop/tablet grande
             mobileMenuToggle.style.display = 'none';
-            sidebar.classList.remove('show-mobile'); // Esconder sidebar em tela grande
+            sidebar.classList.remove('show-mobile');
+            document.body.classList.remove('mobile-view', 'small-mobile-view', 'landscape-view', 'portrait-view');
+            
+            // Ajustar para tablets
+            if (windowWidth <= 1024) {
+                document.body.classList.add('tablet-view');
+            } else {
+                document.body.classList.remove('tablet-view');
+            }
         }
+        
+        // Ajustar altura dos contêineres para evitar problemas em telas pequenas
+        adjustContainerHeights();
+    }
+    
+    // Função para ajustar alturas de contêineres específicos
+    function adjustContainerHeights() {
+        // Ajustar altura das listas de tarefas para evitar sobreposição
+        const taskLists = document.querySelectorAll('.task-list');
+        if (taskLists.length > 0) {
+            const windowHeight = window.innerHeight;
+            const headerHeight = document.querySelector('.main-header')?.offsetHeight || 0;
+            const pageHeaderHeight = document.querySelector('.page-header')?.offsetHeight || 0;
+            
+            const availableHeight = windowHeight - headerHeight - pageHeaderHeight - 100; // 100px para margens
+            taskLists.forEach(list => {
+                list.style.maxHeight = `${Math.max(300, availableHeight)}px`;
+            });
+        }
+        
+        // Ajustar modais conforme tamanho da tela
+        adjustModalPositions();
+    }
+    
+    // Ajustar posições de modais
+    function adjustModalPositions() {
+        const modals = document.querySelectorAll('.task-form, .comments-container, .confirm-box');
+        const isMobile = window.innerWidth <= 768;
+        
+        modals.forEach(modal => {
+            if (isMobile) {
+                modal.style.maxHeight = '90vh';
+            }
+        });
     }
     
     // Alternar exibição da sidebar em dispositivos móveis
     mobileMenuToggle.addEventListener('click', function() {
         sidebar.classList.toggle('show-mobile');
+        
         // Alternar ícone
         const icon = this.querySelector('i');
         if (sidebar.classList.contains('show-mobile')) {
             icon.className = 'fas fa-times';
+            
+            // Adicionar overlay para fechar o menu ao clicar fora
+            if (!document.getElementById('sidebar-overlay')) {
+                const overlay = document.createElement('div');
+                overlay.id = 'sidebar-overlay';
+                overlay.className = 'sidebar-overlay';
+                overlay.addEventListener('click', function() {
+                    sidebar.classList.remove('show-mobile');
+                    icon.className = 'fas fa-bars';
+                    this.remove();
+                });
+                document.body.appendChild(overlay);
+            }
         } else {
             icon.className = 'fas fa-bars';
+            const overlay = document.getElementById('sidebar-overlay');
+            if (overlay) overlay.remove();
         }
     });
     
     // Verificar tamanho inicial da tela
-    checkScreenSize();
+    applyResponsiveAdjustments();
     
-    // Verificar quando a tela for redimensionada
-    window.addEventListener('resize', checkScreenSize);
+    // Verificar quando a tela for redimensionada ou girada
+    window.addEventListener('resize', applyResponsiveAdjustments);
+    window.addEventListener('orientationchange', applyResponsiveAdjustments);
     
     // Fechar o menu ao clicar em um link (apenas em dispositivos móveis)
     const sidebarLinks = document.querySelectorAll('.sidebar-nav a');
@@ -3033,6 +3118,10 @@ document.addEventListener('DOMContentLoaded', function() {
             if (window.innerWidth <= 768) {
                 sidebar.classList.remove('show-mobile');
                 mobileMenuToggle.querySelector('i').className = 'fas fa-bars';
+                
+                // Remover overlay
+                const overlay = document.getElementById('sidebar-overlay');
+                if (overlay) overlay.remove();
             }
         });
     });
@@ -3115,3 +3204,110 @@ function getTaskPeriodText(category) {
     
     return periodTexts[category] || category;
 }
+
+// Função para detectar tipo e modelo de dispositivo
+function detectDeviceType() {
+    const ua = navigator.userAgent;
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua);
+    const isTablet = /(iPad|tablet|Tablet|PlayBook)|(Android(?!.*Mobile))/i.test(ua);
+    const isIPad = /iPad/i.test(ua) || 
+                   (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1 && !window.MSStream);
+    
+    // Detectar iPhone modelo X ou superior (com notch)
+    const isIPhoneX = /iPhone/i.test(ua) && 
+                      (window.screen.height >= 812 || window.screen.width >= 812);
+    
+    return {
+        mobile: isMobile && !isTablet,
+        tablet: isTablet,
+        iPad: isIPad,
+        iPhoneX: isIPhoneX
+    };
+}
+
+// Função para otimizar layout por dispositivo
+function optimizeLayoutForDevice() {
+    const device = detectDeviceType();
+    const htmlElement = document.documentElement;
+    
+    // Adicionar classes ao HTML para CSS específico de dispositivo
+    if (device.mobile) htmlElement.classList.add('device-mobile');
+    if (device.tablet) htmlElement.classList.add('device-tablet');
+    if (device.iPad) htmlElement.classList.add('device-ipad');
+    if (device.iPhoneX) htmlElement.classList.add('device-iphonex');
+    
+    // Ajustes específicos para iPad
+    if (device.iPad) {
+        // Ajustar espaçamento para melhor uso do espaço em tela
+        document.querySelectorAll('.task-list').forEach(el => {
+            el.style.maxHeight = '500px';
+        });
+        
+        // Ativar layout de duas colunas no modo paisagem para iPad
+        window.addEventListener('orientationchange', adjustIPadLayout);
+        adjustIPadLayout();
+    }
+    
+    // Ajustes específicos para iPhone X e modelos com notch
+    if (device.iPhoneX) {
+        document.body.classList.add('has-notch');
+        
+        // Adicionar padding seguro nas áreas afetadas pelo notch e barras de sistema
+        const safeAreaStyle = document.createElement('style');
+        safeAreaStyle.innerHTML = `
+            .mobile-menu-toggle {
+                top: env(safe-area-inset-top, 20px);
+                left: env(safe-area-inset-left, 20px);
+            }
+            .sidebar {
+                padding-top: env(safe-area-inset-top, 32px);
+            }
+            .main-header {
+                padding-top: env(safe-area-inset-top, 16px);
+            }
+            .notification {
+                bottom: env(safe-area-inset-bottom, 20px);
+            }
+        `;
+        document.head.appendChild(safeAreaStyle);
+    }
+}
+
+// Ajustar layout para iPads conforme orientação
+function adjustIPadLayout() {
+    if (window.orientation === 90 || window.orientation === -90) {
+        // Modo paisagem - duas colunas
+        document.body.classList.add('ipad-landscape');
+        document.body.classList.remove('ipad-portrait');
+        
+        // Ajustar layout de colunas no modo paisagem
+        const taskColumns = document.querySelector('.task-columns');
+        if (taskColumns) {
+            taskColumns.style.gridTemplateColumns = 'repeat(auto-fit, minmax(350px, 1fr))';
+        }
+    } else {
+        // Modo retrato - uma coluna
+        document.body.classList.add('ipad-portrait');
+        document.body.classList.remove('ipad-landscape');
+        
+        // Ajustar para layout vertical no modo retrato
+        const taskColumns = document.querySelector('.task-columns');
+        if (taskColumns) {
+            taskColumns.style.gridTemplateColumns = 'minmax(280px, 1fr)';
+        }
+    }
+}
+
+// Inicializar otimização de layout para dispositivos
+document.addEventListener('DOMContentLoaded', function() {
+    // Chamar após carregar o DOM
+    optimizeLayoutForDevice();
+    
+    // Adicionar evento de orientação
+    window.addEventListener('orientationchange', function() {
+        // Pequeno delay para garantir que as dimensões da janela estejam atualizadas
+        setTimeout(function() {
+            applyResponsiveAdjustments();
+        }, 100);
+    });
+});

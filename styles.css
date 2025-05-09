@@ -51,6 +51,13 @@ body {
     background-color: var(--background-color);
     color: var(--text-primary);
     line-height: 1.6;
+    min-height: 100vh;
+    min-height: -webkit-fill-available; /* Solução para iOS */
+    overflow-x: hidden;
+}
+
+html {
+    height: -webkit-fill-available; /* Solução para iOS */
 }
 
 /* Layout Principal */
@@ -60,6 +67,9 @@ body {
     background-image: 
         radial-gradient(circle at 90% 5%, rgba(138, 43, 226, 0.03) 0%, transparent 40%),
         radial-gradient(circle at 10% 90%, rgba(138, 43, 226, 0.05) 0%, transparent 30%);
+    width: 100%;
+    max-width: 100vw;
+    overflow-x: hidden;
 }
 
 /* Sidebar Luxuosa */
@@ -175,6 +185,9 @@ body {
     background-color: var(--background-color);
     overflow-x: hidden;
     margin-left: 280px;
+    transition: margin-left 0.3s ease;
+    width: 100%;
+    box-sizing: border-box;
 }
 
 /* Header Principal Luxuoso */
@@ -191,6 +204,8 @@ body {
     position: relative;
     overflow: hidden;
     transition: all var(--transition-normal);
+    width: 100%;
+    box-sizing: border-box;
 }
 
 .main-header::before {
@@ -220,6 +235,8 @@ body {
     max-width: 400px;
     transition: all var(--transition-normal);
     border: 1px solid transparent;
+    width: 100%;
+    box-sizing: border-box;
 }
 
 .header-search:focus-within {
@@ -238,12 +255,16 @@ body {
     width: 100%;
     color: var(--text-primary);
     font-size: 15px;
+    box-sizing: border-box;
 }
 
 .header-actions {
     display: flex;
     align-items: center;
     gap: 18px;
+    width: 100%;
+    justify-content: space-between;
+    box-sizing: border-box;
 }
 
 .theme-toggle {
@@ -258,6 +279,9 @@ body {
     align-items: center;
     justify-content: center;
     font-size: 18px;
+    width: 48px;
+    height: 48px;
+    box-sizing: border-box;
 }
 
 .theme-toggle:hover {
@@ -276,6 +300,8 @@ body {
     cursor: pointer;
     transition: all var(--transition-normal);
     border: 1px solid transparent;
+    width: 100%;
+    box-sizing: border-box;
 }
 
 .user-profile:hover {
@@ -306,6 +332,8 @@ body {
     padding-bottom: 16px;
     border-bottom: 1px solid var(--border-color);
     position: relative;
+    width: 100%;
+    box-sizing: border-box;
 }
 
 .page-header::after {
@@ -328,6 +356,11 @@ body {
     -webkit-background-clip: text;
     background-clip: text;
     color: transparent;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    hyphens: auto;
+    width: 100%;
+    box-sizing: border-box;
 }
 
 .page-header h2::before {
@@ -356,6 +389,8 @@ body {
     transition: all var(--transition-normal);
     box-shadow: var(--shadow-luxury);
     transform-origin: right center;
+    width: 100%;
+    box-sizing: border-box;
 }
 
 .new-task-btn:hover {
@@ -404,6 +439,9 @@ body {
     z-index: 1001;
     overflow: hidden;
     animation: slideUp 0.4s ease-out;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
 }
 
 @keyframes slideUp {
@@ -425,12 +463,16 @@ body {
     background: var(--luxury-gradient);
     color: white;
     position: relative;
+    width: 100%;
+    box-sizing: border-box;
 }
 
 .form-header h3 {
     font-size: 20px;
     font-weight: 600;
     margin: 0;
+    width: 100%;
+    box-sizing: border-box;
 }
 
 .close-modal {
@@ -446,6 +488,9 @@ body {
     height: 32px;
     border-radius: 50%;
     transition: all var(--transition-normal);
+    width: 48px;
+    height: 48px;
+    box-sizing: border-box;
 }
 
 .close-modal:hover {
@@ -464,6 +509,8 @@ body {
 .form-group {
     margin-bottom: 24px;
     position: relative;
+    width: 100%;
+    box-sizing: border-box;
 }
 
 .form-group label {
@@ -475,6 +522,8 @@ body {
     font-size: 14px;
     font-weight: 500;
     transition: color var(--transition-normal);
+    width: 100%;
+    box-sizing: border-box;
 }
 
 .form-group:focus-within label {
@@ -491,6 +540,7 @@ body {
     color: var(--text-primary);
     transition: all var(--transition-normal);
     font-size: 15px;
+    box-sizing: border-box;
 }
 
 .form-group input:focus,
@@ -1358,6 +1408,8 @@ body {
     margin-bottom: 36px;
     position: relative;
     gap: 24px;
+    width: 100%;
+    box-sizing: border-box;
 }
 
 .calendar-nav-group {
@@ -1419,6 +1471,8 @@ body {
     -webkit-background-clip: text;
     background-clip: text;
     color: transparent;
+    width: 100%;
+    box-sizing: border-box;
 }
 
 #calendar-month-year:after {
@@ -2092,6 +2146,8 @@ body {
     gap: 24px;
     margin-bottom: 28px;
     flex-wrap: wrap;
+    width: 100%;
+    box-sizing: border-box;
 }
 
 .period-selector,
@@ -2877,3 +2933,665 @@ body {
         transform: rotate(360deg);
     }
 } 
+
+/* Ajustes Responsivos Melhorados */
+@media (max-width: 1200px) {
+    .analytics-container {
+        gap: 20px;
+    }
+    
+    .analytics-row {
+        gap: 20px;
+    }
+    
+    .task-columns {
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 20px;
+    }
+    
+    .calendar-grid {
+        gap: 14px;
+    }
+    
+    .calendar-cell {
+        min-height: 140px;
+        padding: 14px;
+    }
+}
+
+@media (max-width: 1024px) {
+    .sidebar {
+        width: 220px;
+    }
+    
+    .main-content {
+        margin-left: 220px;
+        padding: 24px;
+    }
+    
+    .analytics-row {
+        flex-direction: column;
+    }
+    
+    .analytics-card {
+        width: 100%;
+    }
+    
+    .chart-card .card-body {
+        height: 250px;
+    }
+    
+    .task-table {
+        font-size: 14px;
+    }
+    
+    .task-row td {
+        padding: 12px 8px;
+    }
+    
+    .actions-cell button {
+        width: 32px;
+        height: 32px;
+    }
+    
+    .task-form {
+        max-width: 90%;
+    }
+    
+    .status-options {
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    }
+}
+
+@media (max-width: 768px) {
+    .sidebar {
+        transform: translateX(-100%);
+        transition: transform 0.3s ease;
+        position: fixed;
+        width: 260px;
+        z-index: 1100;
+        box-shadow: var(--shadow-lg);
+    }
+    
+    .sidebar.show-mobile {
+        transform: translateX(0);
+    }
+    
+    .main-content {
+        margin-left: 0;
+        padding: 16px;
+    }
+    
+    /* Adicionar botão de menu para dispositivos móveis */
+    .mobile-menu-toggle {
+        display: block;
+        position: fixed;
+        top: 20px;
+        left: 20px;
+        z-index: 200;
+        background: var(--luxury-gradient);
+        color: white;
+        border: none;
+        border-radius: 50%;
+        width: 42px;
+        height: 42px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: var(--shadow);
+        cursor: pointer;
+    }
+    
+    .task-filter-section {
+        flex-direction: column;
+        gap: 16px;
+    }
+    
+    .main-header {
+        flex-direction: column;
+        padding: 16px;
+        gap: 16px;
+    }
+    
+    .header-search {
+        max-width: 100%;
+        width: 100%;
+    }
+    
+    .header-actions {
+        width: 100%;
+        justify-content: space-between;
+    }
+    
+    .page-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 16px;
+    }
+    
+    .page-header h2 {
+        font-size: 24px;
+    }
+    
+    .new-task-btn {
+        align-self: stretch;
+        justify-content: center;
+    }
+    
+    .task-form {
+        max-width: 95%;
+        margin: 0 auto;
+    }
+    
+    .form-row {
+        grid-template-columns: 1fr;
+        gap: 16px;
+    }
+    
+    .task-table-container {
+        overflow-x: auto;
+    }
+    
+    .task-table {
+        min-width: 700px;
+    }
+    
+    .date-cell {
+        display: none;
+    }
+    
+    .actions-cell {
+        width: auto;
+    }
+    
+    .calendar-controls {
+        gap: 16px;
+    }
+    
+    .calendar-nav-group {
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 10px;
+    }
+    
+    .calendar-nav-btn, .calendar-today-btn {
+        padding: 10px 16px;
+        font-size: 14px;
+    }
+    
+    #calendar-month-year {
+        font-size: 24px;
+    }
+    
+    .confirm-box {
+        max-width: 90%;
+    }
+}
+
+@media (max-width: 480px) {
+    .main-content {
+        padding: 12px;
+    }
+    
+    .mobile-menu-toggle {
+        top: 15px;
+        left: 15px;
+        width: 38px;
+        height: 38px;
+    }
+    
+    .sidebar {
+        width: 85%;
+    }
+    
+    .main-header {
+        padding: 14px;
+        margin-bottom: 24px;
+    }
+    
+    .task-form-modal {
+        padding: 12px;
+    }
+    
+    .task-form {
+        max-width: 100%;
+    }
+    
+    .form-header, .form-body, .form-footer {
+        padding: 16px;
+    }
+    
+    .status-options {
+        grid-template-columns: 1fr 1fr;
+    }
+    
+    .btn-cancel, .btn-submit {
+        padding: 12px 16px;
+        font-size: 14px;
+    }
+    
+    .calendar-cell {
+        min-height: 110px;
+        padding: 10px;
+    }
+    
+    .calendar-task {
+        padding: 8px 12px;
+        font-size: 12px;
+    }
+    
+    .calendar-task-indicator {
+        font-size: 11px;
+        padding: 4px 10px;
+    }
+    
+    .comments-container {
+        max-width: 95%;
+        max-height: 90vh;
+    }
+    
+    .calendar-tasks-container {
+        max-height: 80px;
+    }
+    
+    .notification {
+        left: 12px;
+        right: 12px;
+        width: auto;
+        max-width: none;
+        bottom: 12px;
+        font-size: 14px;
+    }
+    
+    .confirm-box {
+        max-width: 95%;
+    }
+    
+    .confirm-header {
+        padding: 16px;
+    }
+    
+    .confirm-body {
+        padding: 16px;
+        font-size: 15px;
+    }
+    
+    .confirm-footer {
+        padding: 16px;
+        gap: 10px;
+    }
+    
+    .btn-cancel-action, .btn-confirm-action {
+        padding: 10px 16px;
+        font-size: 14px;
+    }
+}
+
+/* Regras gerais para imagens responsivas */
+img {
+    max-width: 100%;
+    height: auto;
+}
+
+/* Ajustes para dispositivos com tela touch */
+@media (pointer: coarse) {
+    /* Aumentar área clicável para telas touch */
+    .task-actions button,
+    .actions-cell button,
+    .mobile-menu-toggle,
+    .close-modal,
+    .close-comments-modal {
+        min-width: 44px;
+        min-height: 44px;
+    }
+    
+    /* Aumentar espaçamento para elementos interativos */
+    .task-item,
+    .calendar-task,
+    .summary-item,
+    .sidebar-nav a {
+        padding: 12px 16px;
+    }
+    
+    /* Aumentar tamanho de fonte para leitura em dispositivos móveis */
+    .task-item,
+    .calendar-task,
+    .task-filter-section,
+    .comment-item {
+        font-size: 16px;
+    }
+    
+    /* Ajustar espaçamento entre elementos para telas touch */
+    .sidebar-nav {
+        gap: 8px;
+    }
+}
+
+/* Overlay da sidebar para dispositivos móveis */
+.sidebar-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 1000;
+    animation: fadeIn 0.3s ease-out;
+}
+
+/* Estilos para viewport em orientação específica */
+.portrait-view .calendar-grid {
+    grid-template-columns: repeat(auto-fit, minmax(42px, 1fr));
+}
+
+.landscape-view .calendar-cell {
+    min-height: 80px;
+}
+
+/* Contorno de foco para melhor acessibilidade */
+a:focus, button:focus, input:focus, select:focus, textarea:focus {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+}
+
+/* Ajustar telas pequenas - retrato */
+@media (max-width: 480px) and (orientation: portrait) {
+    .task-columns {
+        grid-template-columns: 1fr;
+    }
+    
+    .calendar-grid {
+        grid-template-columns: repeat(7, 1fr);
+        gap: 5px;
+    }
+    
+    .calendar-cell {
+        min-height: 80px;
+        padding: 8px;
+    }
+    
+    .analytics-card {
+        margin-bottom: 16px;
+    }
+}
+
+/* Ajustar telas pequenas - paisagem */
+@media (max-width: 768px) and (orientation: landscape) {
+    .sidebar {
+        width: 220px;
+    }
+    
+    .task-columns {
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    }
+    
+    .calendar-controls {
+        flex-wrap: wrap;
+    }
+    
+    .mobile-menu-toggle {
+        top: 10px;
+        left: 10px;
+    }
+}
+
+/* Estilos para dispositivos touch que melhoram a experiência móvel */
+@media (hover: none) {
+    /* Aumentar áreas clicáveis */
+    .sidebar-nav a, 
+    .task-actions button, 
+    .period-option,
+    .btn-submit,
+    .btn-cancel,
+    .header-actions button {
+        padding: 12px;
+    }
+    
+    /* Eliminar hover states que não fazem sentido em touch e adicionar feedback de toque */
+    .task-item:active,
+    .calendar-task:active,
+    .new-task-btn:active,
+    .btn-submit:active,
+    .task-actions button:active,
+    .sidebar-nav a:active {
+        transform: scale(0.98);
+        transition: transform 0.1s;
+    }
+}
+
+/* Ajustes para dispositivos com tela muito pequena */
+@media (max-width: 360px) {
+    .main-content {
+        padding: 10px;
+    }
+    
+    .mobile-menu-toggle {
+        width: 36px;
+        height: 36px;
+        top: 10px;
+        left: 10px;
+    }
+    
+    .task-form-modal {
+        padding: 8px;
+    }
+    
+    .form-header, .form-body, .form-footer {
+        padding: 12px;
+    }
+    
+    .form-header h3 {
+        font-size: 16px;
+    }
+    
+    .status-options {
+        grid-template-columns: 1fr;
+    }
+    
+    .calendar-task-indicator {
+        font-size: 10px;
+        padding: 3px 8px;
+    }
+}
+
+/* Melhorias de interação touch para dispositivos móveis */
+.mobile-view .task-item,
+.mobile-view .calendar-task,
+.mobile-view .sidebar-nav a,
+.mobile-view .period-option,
+.mobile-view .status-option,
+.mobile-view .task-actions button,
+.mobile-view .actions-cell button {
+    touch-action: manipulation;
+}
+
+/* Efeito de toque para dispositivos móveis */
+.mobile-view .btn-submit:active,
+.mobile-view .btn-cancel:active,
+.mobile-view .new-task-btn:active,
+.mobile-view .close-modal:active,
+.mobile-view .task-actions button:active,
+.mobile-view .actions-cell button:active,
+.mobile-view .calendar-nav-btn:active,
+.mobile-view .calendar-today-btn:active,
+.mobile-view .sidebar-nav a:active {
+    background-color: rgba(138, 43, 226, 0.15);
+    transform: scale(0.97);
+    transition: all 0.1s ease-out;
+}
+
+/* Botões de ação mais acessíveis em dispositivos móveis */
+.mobile-view .task-actions,
+.mobile-view .actions-cell {
+    gap: 12px;
+}
+
+/* Rolagem suave para todos os dispositivos */
+html {
+    scroll-behavior: smooth;
+}
+
+/* Melhorar feedback visual de carregamento e sincronização para dispositivos móveis */
+@keyframes pulse-mobile {
+    0% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.05); opacity: 0.8; }
+    100% { transform: scale(1); opacity: 1; }
+}
+
+.mobile-view .sync-button.rotating i {
+    animation: rotate 1s linear infinite, pulse-mobile 1.5s ease-in-out infinite;
+}
+
+/* Ajuste do overlay de loading para dispositivos móveis */
+.loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(255, 255, 255, 0.8);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 2000;
+    backdrop-filter: blur(5px);
+}
+
+.dark-theme .loading-overlay {
+    background-color: rgba(30, 41, 59, 0.8);
+}
+
+.loading-spinner {
+    width: 48px;
+    height: 48px;
+    border: 3px solid rgba(138, 43, 226, 0.2);
+    border-top-color: var(--primary-color);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* Melhorar acessibilidade de foco em tablets e mobiles */
+.mobile-view a:focus, 
+.mobile-view button:focus,
+.tablet-view a:focus, 
+.tablet-view button:focus {
+    box-shadow: 0 0 0 3px rgba(138, 43, 226, 0.5);
+    outline: none;
+}
+
+/* Melhorar os controles de formulários em dispositivos móveis */
+.mobile-view select,
+.mobile-view input[type="datetime-local"],
+.mobile-view input[type="text"] {
+    font-size: 16px; /* Evita zoom automático em iOS */
+    height: 48px;
+    background-color: rgba(255, 255, 255, 0.8);
+}
+
+.dark-theme.mobile-view select,
+.dark-theme.mobile-view input[type="datetime-local"],
+.dark-theme.mobile-view input[type="text"] {
+    background-color: rgba(30, 41, 59, 0.8);
+}
+
+/* Fast-tap para eliminar delay de 300ms em dispositivos mobile */
+.mobile-view * {
+    touch-action: manipulation;
+}
+
+/* Estilos para dispositivos específicos */
+
+/* iPad */
+.device-ipad .task-item {
+    padding: 16px;
+}
+
+.device-ipad .sidebar {
+    width: 260px;
+}
+
+.device-ipad.ipad-landscape .main-content {
+    margin-left: 260px;
+}
+
+.device-ipad.ipad-portrait .sidebar {
+    transform: translateX(-100%);
+}
+
+.device-ipad.ipad-portrait .main-content {
+    margin-left: 0;
+}
+
+.device-ipad.ipad-portrait .mobile-menu-toggle {
+    display: flex !important;
+}
+
+.device-ipad .calendar-grid {
+    gap: 16px;
+}
+
+.device-ipad.ipad-landscape .calendar-cell {
+    min-height: 150px;
+}
+
+.device-ipad.ipad-portrait .calendar-cell {
+    min-height: 120px;
+}
+
+/* iPhone X e modelos com notch */
+.device-iphonex .main-header {
+    padding-top: 44px; /* Fallback se env() não for suportado */
+}
+
+.device-iphonex .sidebar {
+    padding-top: 44px; /* Fallback se env() não for suportado */
+}
+
+.device-iphonex .mobile-menu-toggle {
+    top: 44px; /* Fallback se env() não for suportado */
+}
+
+.device-iphonex .notification {
+    bottom: 34px; /* Fallback se env() não for suportado */
+}
+
+.has-notch .task-form-modal,
+.has-notch .confirm-modal {
+    padding-top: env(safe-area-inset-top, 44px);
+    padding-bottom: env(safe-area-inset-bottom, 34px);
+}
+
+/* Otimizações para dispositivos específicos */
+.device-mobile .task-item,
+.device-mobile .calendar-task {
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    margin-bottom: 10px;
+}
+
+.device-tablet .calendar-controls {
+    padding: 16px;
+}
+
+.device-tablet .calendar-nav-group {
+    gap: 8px;
+}
+
+/* Substituições para dispositivos touch */
+@media (pointer: coarse) {
+    /* Aumentar área clicável */
+    .period-option,
+    .status-option,
+    .sidebar-nav a,
+    .task-actions button,
+    .actions-cell button {
+        min-height: 44px;
+    }
+    
+    .sidebar-nav a {
+        padding: 14px 20px;
+    }
+}
